@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    background: theme(colors.surface.DEFAULT);
+    color: theme(colors.ink.DEFAULT);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100%;
+  }
+  ::selection { background: rgba(0, 0, 0, 0.08); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: theme(colors.line.strong); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b5b5b3; }
+}
+
+@layer components {
+  .card { @apply bg-surface border border-line rounded-md; }
+}
