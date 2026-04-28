@@ -3,19 +3,79 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   html, body, #root {
     background: theme(colors.surface.DEFAULT);
     color: theme(colors.ink.DEFAULT);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Inter OpenType фичи: cv11 — упрощённая 'l', ss01 — cleaner alternates,
+       tnum — табличные цифры (одинаковая ширина), zero — slashed zero */
+    font-feature-settings: "ss01", "cv11", "cv05", "cv09", "calt";
     min-height: 100%;
   }
-  ::selection { background: rgba(0, 0, 0, 0.08); }
+  body {
+    font-variant-ligatures: contextual;
+  }
+
+  ::selection {
+    background: theme(colors.brand.tintStrong);
+    color: theme(colors.brand.dark);
+  }
+
+  /* Скроллбар — тонкий, нейтральный */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { background: theme(colors.line.strong); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #b5b5b3; }
+  ::-webkit-scrollbar-thumb {
+    background: theme(colors.line.strong);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: theme(colors.ink.soft); }
+
+  /* Focus: акцент бренда */
+  :focus-visible {
+    outline: none;
+    box-shadow: theme(boxShadow.focusBrand);
+    border-radius: 4px;
+  }
+
+  /* Числа везде идут табличные, чтобы суммы выравнивались */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
 @layer components {
-  .card { @apply bg-surface border border-line rounded-md; }
+  .card {
+    @apply bg-surface border border-line rounded-lg shadow-card transition-shadow duration-200;
+  }
+  .card-hover {
+    @apply hover:shadow-cardHover hover:border-line-strong;
+  }
+  .row-hover {
+    @apply transition-colors duration-150 hover:bg-surface-hover;
+  }
+  /* Подложка с очень лёгким акцентом бренда */
+  .bg-brand-veil {
+    background:
+      radial-gradient(1200px 600px at 100% -100px, rgba(26, 0, 136, 0.06), transparent 60%),
+      radial-gradient(800px 400px at 0% 110%, rgba(26, 0, 136, 0.04), transparent 60%),
+      theme(colors.surface.DEFAULT);
+  }
+  .skeleton {
+    @apply rounded;
+    background: linear-gradient(
+      90deg,
+      theme(colors.line.soft) 0%,
+      theme(colors.surface.muted) 40%,
+      theme(colors.line.soft) 80%
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+@layer utilities {
+  /* Поддержка Telegram-овской цветовой схемы (на потом) */
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }

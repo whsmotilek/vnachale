@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, type AnalyticsResponse } from "../api";
 import { StatCard } from "../components/StatCard";
+import { StatCardsSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
 
 function formatRub(n: number): string {
@@ -26,58 +27,94 @@ export function Analytics() {
   }, []);
 
   return (
-    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px]">
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Аналитика</h1>
-        <p className="mt-1 text-[13px] text-ink-muted">
+        <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Аналитика</h1>
+        <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
           Выручка считается по заказам в статусах confirmed, in_pack, shipped, delivered.
         </p>
       </header>
 
       {error && (
-        <div className="mb-4 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-3">
+        <div className="mb-4 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 animate-fade-in">
           {error}
         </div>
       )}
 
       {!data ? (
-        <div className="card p-8 text-center text-ink-muted">{error ? "Нет данных" : "Загрузка…"}</div>
+        error ? (
+          <div className="card p-8 text-center text-ink-muted">Нет данных</div>
+        ) : (
+          <StatCardsSkeleton />
+        )
       ) : (
         <>
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard label="Сегодня" value={formatRub(data.today_revenue)} hint="с 00:00" />
-            <StatCard label="Эта неделя" value={formatRub(data.week_revenue)} hint="с понедельника" />
-            <StatCard label="Этот месяц" value={formatRub(data.month_revenue)} hint="с 1-го числа" />
-            <StatCard label="Средний чек" value={formatRub(Math.round(data.aov))} hint="за всё время" />
+            <StatCard
+              label="Эта неделя"
+              value={formatRub(data.week_revenue)}
+              hint="с понедельника"
+            />
+            <StatCard
+              label="Этот месяц"
+              value={formatRub(data.month_revenue)}
+              hint="с 1-го числа"
+            />
+            <StatCard
+              label="Средний чек"
+              value={formatRub(Math.round(data.aov))}
+              hint="за всё время"
+            />
           </section>
 
-          <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">
             <div className="card p-4">
-              <h2 className="text-sm font-semibold mb-3">Распределение по статусам</h2>
+              <h2 className="text-sm font-semibold mb-3 tracking-tightish">
+                Распределение по статусам
+              </h2>
               {Object.keys(data.status_counts).length === 0 ? (
                 <Empty />
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {Object.entries(data.status_counts)
                     .sort((a, b) => b[1] - a[1])
-                    .map(([status, count]) => (
-                      <li key={status} className="flex items-center justify-between text-[13px]">
-                        <span className="text-ink">{status}</span>
-                        <span className="text-ink-muted tabular-nums">{count}</span>
-                      </li>
-                    ))}
+                    .map(([status, count], idx, arr) => {
+                      const max = Math.max(...arr.map(([, n]) => n));
+                      const pct = (count / max) * 100;
+                      return (
+                        <li
+                          key={status}
+                          className="flex items-center justify-between text-[13px] gap-3"
+                        >
+                          <span className="text-ink shrink-0">{status}</span>
+                          <div className="flex-1 mx-2 h-1.5 rounded-full bg-line-soft overflow-hidden">
+                            <div
+                              className="h-full bg-brand/70 rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-ink-muted tabular-nums shrink-0 w-6 text-right">
+                            {count}
+                          </span>
+                        </li>
+                      );
+                    })}
                 </ul>
               )}
             </div>
 
             <div className="card p-4">
-              <h2 className="text-sm font-semibold mb-3">Топ городов</h2>
+              <h2 className="text-sm font-semibold mb-3 tracking-tightish">Топ городов</h2>
               {data.top_cities.length === 0 ? (
                 <Empty />
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {data.top_cities.map(([city, count]) => (
-                    <li key={city} className="flex items-center justify-between text-[13px]">
+                    <li
+                      key={city}
+                      className="flex items-center justify-between text-[13px]"
+                    >
                       <span className="text-ink truncate">{city}</span>
                       <span className="text-ink-muted tabular-nums">{count}</span>
                     </li>
@@ -87,13 +124,19 @@ export function Analytics() {
             </div>
           </section>
 
-          <section className="mt-8">
-            <div className="card p-4 flex items-center justify-between">
+          <section className="mt-8 animate-slide-up-fast">
+            <div className="card card-hover p-4 flex items-center justify-between transition-transform duration-200 hover:-translate-y-px">
               <div>
-                <div className="text-sm font-semibold">Ожидают отгрузки</div>
-                <div className="text-[12px] text-ink-muted mt-0.5">статусы new / confirmed / in_pack</div>
+                <div className="text-sm font-semibold tracking-tightish">
+                  Ожидают отгрузки
+                </div>
+                <div className="text-[12px] text-ink-muted mt-0.5">
+                  статусы new / confirmed / in_pack
+                </div>
               </div>
-              <div className="text-3xl font-semibold tabular-nums">{data.pending_count}</div>
+              <div className="text-3xl font-semibold tracking-tighter2 tabular-nums text-brand-dark">
+                {data.pending_count}
+              </div>
             </div>
           </section>
         </>
