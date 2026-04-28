@@ -78,6 +78,12 @@ export const api = {
   async authTelegram(payload: Record<string, unknown>): Promise<{ token: string }> {
     return request("/auth/telegram", { method: "POST", body: JSON.stringify(payload) });
   },
+  async authTelegramWebApp(initData: string): Promise<{ token: string }> {
+    return request("/auth/telegram-webapp", {
+      method: "POST",
+      body: JSON.stringify({ init_data: initData }),
+    });
+  },
   async orders(): Promise<Order[]> {
     return request("/orders");
   },

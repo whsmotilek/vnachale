@@ -9,9 +9,15 @@ declare global {
   }
 }
 
-export function Login({ onLoggedIn }: { onLoggedIn: () => void }) {
+export function Login({
+  onLoggedIn,
+  bootstrapError,
+}: {
+  onLoggedIn: () => void;
+  bootstrapError?: string | null;
+}) {
   const widgetRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(bootstrapError ?? null);
 
   useEffect(() => {
     if (!widgetRef.current || !hasApi) return;

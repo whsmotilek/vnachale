@@ -27,7 +27,7 @@ export function Orders() {
   }, []);
 
   return (
-    <div className="px-8 py-8 max-w-[1200px]">
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px]">
       <header className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Заказы</h1>
         {orders && (

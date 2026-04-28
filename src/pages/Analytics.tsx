@@ -26,7 +26,7 @@ export function Analytics() {
   }, []);
 
   return (
-    <div className="px-8 py-8 max-w-[1200px]">
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px]">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Аналитика</h1>
         <p className="mt-1 text-[13px] text-ink-muted">
