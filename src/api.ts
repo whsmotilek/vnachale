@@ -68,8 +68,18 @@ export interface AnalyticsResponse {
   month_revenue: number;
   aov: number;
   pending_count: number;
+  total_orders: number;
+  unique_customers: number;
+  repeat_customers: number;
+  repeat_rate: number;
+  conversion_rate: number;
+  refund_rate: number;
   status_counts: Record<string, number>;
   top_cities: Array<[string, number]>;
+  top_products: Array<[string, number]>;
+  top_sizes: Array<[string, number]>;
+  delivery_methods: Array<[string, number]>;
+  daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
 }
 
 // === методы ===

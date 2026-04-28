@@ -1,11 +1,11 @@
 import type { Order } from "../api";
 import { StatusBadge } from "./StatusBadge";
+import { OrderCard } from "./OrderCard";
+import clsx from "clsx";
 
 function formatRub(value: string | number): string {
   const n =
-    typeof value === "string"
-      ? Number(value.replace(/[^\d.,-]/g, "").replace(",", "."))
-      : value;
+    typeof value === "string" ? Number(value.replace(/[^\d.,-]/g, "").replace(",", ".")) : value;
   if (!Number.isFinite(n)) return "—";
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n) + " ₽";
 }
@@ -29,67 +29,74 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         <div className="mx-auto mb-3 w-10 h-10 rounded-full bg-brand-tint flex items-center justify-center">
           <span className="text-brand-dark text-base">∅</span>
         </div>
-        <div className="text-base font-medium text-ink tracking-tightish">
-          Заказов пока нет
-        </div>
+        <div className="text-base font-medium text-ink tracking-tightish">Заказов пока нет</div>
         <div className="mt-1 text-[13px] max-w-xs mx-auto">
-          Когда подключим Tilda webhook, новые заказы будут появляться здесь
-          автоматически.
+          Когда подключим Tilda webhook, новые заказы будут появляться здесь автоматически.
         </div>
       </div>
     );
   }
   return (
-    <div className="card overflow-hidden animate-slide-up-fast">
-      <table className="w-full text-[13px]">
-        <thead className="bg-surface-alt border-b border-line text-ink-muted">
-          <tr>
-            <Th>Заказ</Th>
-            <Th>Создан</Th>
-            <Th>Статус</Th>
-            <Th>Клиент</Th>
-            <Th>Доставка</Th>
-            <Th align="right">Сумма</Th>
-            <Th>Трек</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((o) => (
-            <tr key={o.order_id} className="border-t border-line row-hover">
-              <Td>
-                <span className="font-mono text-[12px] text-ink-muted">{o.order_id}</span>
-              </Td>
-              <Td>{formatDate(o.created_at)}</Td>
-              <Td>
-                <StatusBadge status={o.status} />
-              </Td>
-              <Td>
-                <div className="truncate max-w-[180px] text-ink">{o.customer_name || "—"}</div>
-                {o.city && <div className="text-ink-subtle text-[11px]">{o.city}</div>}
-              </Td>
-              <Td>
-                <div className="truncate max-w-[200px] text-ink">{o.delivery_method || "—"}</div>
-                {(o.pickup_point || o.delivery_address) && (
-                  <div className="text-ink-subtle text-[11px] truncate max-w-[200px]">
-                    {o.pickup_point || o.delivery_address}
-                  </div>
-                )}
-              </Td>
-              <Td align="right" className="tabular-nums font-medium">
-                {formatRub(o.total)}
-              </Td>
-              <Td>
-                {o.track_number ? (
-                  <span className="font-mono text-[11px] text-ink-muted">{o.track_number}</span>
-                ) : (
-                  <span className="text-ink-soft">—</span>
-                )}
-              </Td>
+    <>
+      {/* === Мобильная вёрстка: стек карточек === */}
+      <div className="lg:hidden flex flex-col gap-2 animate-slide-up-fast">
+        {orders.map((o) => (
+          <OrderCard key={o.order_id} order={o} />
+        ))}
+      </div>
+
+      {/* === Десктопная вёрстка: таблица === */}
+      <div className="hidden lg:block card overflow-hidden animate-slide-up-fast">
+        <table className="w-full text-[13px]">
+          <thead className="bg-surface-alt border-b border-line text-ink-muted">
+            <tr>
+              <Th>Заказ</Th>
+              <Th>Создан</Th>
+              <Th>Статус</Th>
+              <Th>Клиент</Th>
+              <Th>Доставка</Th>
+              <Th align="right">Сумма</Th>
+              <Th>Трек</Th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.order_id} className="border-t border-line row-hover">
+                <Td>
+                  <span className="font-mono text-[12px] text-ink-muted">{o.order_id}</span>
+                </Td>
+                <Td>{formatDate(o.created_at)}</Td>
+                <Td>
+                  <StatusBadge status={o.status} />
+                </Td>
+                <Td>
+                  <div className="truncate max-w-[180px] text-ink">{o.customer_name || "—"}</div>
+                  {o.city && <div className="text-ink-subtle text-[11px]">{o.city}</div>}
+                </Td>
+                <Td>
+                  <div className="truncate max-w-[200px] text-ink">{o.delivery_method || "—"}</div>
+                  {(o.pickup_point || o.delivery_address) && (
+                    <div className="text-ink-subtle text-[11px] truncate max-w-[200px]">
+                      {o.pickup_point || o.delivery_address}
+                    </div>
+                  )}
+                </Td>
+                <Td align="right" className="tabular-nums font-medium">
+                  {formatRub(o.total)}
+                </Td>
+                <Td>
+                  {o.track_number ? (
+                    <span className="font-mono text-[11px] text-ink-muted">{o.track_number}</span>
+                  ) : (
+                    <span className="text-ink-soft">—</span>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -133,6 +140,3 @@ function Td({
     </td>
   );
 }
-
-// локальный helper чтобы не тащить clsx в каждый Th/Td через imports
-import clsx from "clsx";
