@@ -1,4 +1,4 @@
-// Обёртка над Telegram WebApp SDK: window.Telegram.WebApp.
+// Обертка над Telegram WebApp SDK: window.Telegram.WebApp.
 // Если страница открыта НЕ внутри Telegram, объект отсутствует.
 
 interface TelegramWebApp {

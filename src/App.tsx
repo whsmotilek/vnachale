@@ -36,7 +36,7 @@ export default function App() {
 
   // Bootstrap: проверяем варианты в порядке приоритета:
   //   1. JWT в URL #fragment — пришли из redirect-flow Telegram Login Widget
-  //   2. Сохранённый JWT в localStorage
+  //   2. Сохраненный JWT в localStorage
   //   3. Внутри Telegram (initData) — auto-auth через WebApp endpoint
   //   4. Иначе — показываем Login Widget
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function App() {
         }
       }
 
-      // 2. сохранённый токен
+      // 2. сохраненный токен
       const existing = getToken();
       if (existing) {
         const u = decodeJwtPayload(existing);

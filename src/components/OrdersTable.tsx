@@ -31,21 +31,21 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         </div>
         <div className="text-base font-medium text-ink tracking-tightish">Заказов пока нет</div>
         <div className="mt-1 text-[13px] max-w-xs mx-auto">
-          Когда подключим Tilda webhook, новые заказы будут появляться здесь автоматически.
+          Заказы появятся здесь сразу после оформления на сайте.
         </div>
       </div>
     );
   }
   return (
     <>
-      {/* === Мобильная вёрстка: стек карточек === */}
+      {/* === Мобильная верстка: стек карточек === */}
       <div className="lg:hidden flex flex-col gap-2 animate-slide-up-fast">
         {orders.map((o) => (
           <OrderCard key={o.order_id} order={o} />
         ))}
       </div>
 
-      {/* === Десктопная вёрстка: таблица === */}
+      {/* === Десктопная верстка: таблица === */}
       <div className="hidden lg:block card overflow-hidden animate-slide-up-fast">
         <table className="w-full text-[13px]">
           <thead className="bg-surface-alt border-b border-line text-ink-muted">

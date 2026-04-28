@@ -24,7 +24,7 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!env.apiBaseUrl) {
-    throw new ApiError(0, "VITE_API_BASE_URL не задан — API не подключён");
+    throw new ApiError(0, "Сервис временно недоступен");
   }
   const token = getToken();
   const res = await fetch(`${env.apiBaseUrl}${path}`, {

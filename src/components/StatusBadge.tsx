@@ -12,12 +12,12 @@ const styles: Record<string, string> = {
 
 const labels: Record<string, string> = {
   new: "Новый",
-  confirmed: "Подтверждён",
+  confirmed: "Подтвержден",
   in_pack: "В сборке",
   shipped: "Отгружен",
   delivered: "Доставлен",
   refunded: "Возврат",
-  cancelled: "Отменён",
+  cancelled: "Отменен",
 };
 
 export function StatusBadge({ status }: { status: string }) {

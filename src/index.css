@@ -12,7 +12,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Inter OpenType фичи: cv11 — упрощённая 'l', ss01 — cleaner alternates,
+    /* Inter OpenType фичи: cv11 — упрощенная 'l', ss01 — cleaner alternates,
        tnum — табличные цифры (одинаковая ширина), zero — slashed zero */
     font-feature-settings: "ss01", "cv11", "cv05", "cv09", "calt";
     min-height: 100%;
@@ -55,7 +55,7 @@
   .row-hover {
     @apply transition-colors duration-150 hover:bg-surface-hover;
   }
-  /* Подложка с очень лёгким акцентом бренда */
+  /* Подложка с очень легким акцентом бренда */
   .bg-brand-veil {
     background:
       radial-gradient(1200px 600px at 100% -100px, rgba(26, 0, 136, 0.06), transparent 60%),

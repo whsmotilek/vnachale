@@ -27,13 +27,13 @@ const DELIVERY_LABELS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "Новый",
-  confirmed: "Подтверждён",
+  new: "Новые",
+  confirmed: "Подтвержденные",
   in_pack: "В сборке",
-  shipped: "Отгружен",
-  delivered: "Доставлен",
-  refunded: "Возврат",
-  cancelled: "Отменён",
+  shipped: "Отгруженные",
+  delivered: "Доставленные",
+  refunded: "Возвраты",
+  cancelled: "Отмененные",
 };
 
 export function Analytics() {
@@ -42,15 +42,14 @@ export function Analytics() {
 
   useEffect(() => {
     if (!hasApi) {
-      setError("VITE_API_BASE_URL не задан — данные API не подключены.");
+      setError("Сервис временно недоступен.");
       return;
     }
     api
       .analytics()
       .then(setData)
-      .catch((e: unknown) => {
-        if (e instanceof ApiError) setError(`API: ${e.message}`);
-        else setError(String(e));
+      .catch(() => {
+        setError("Не удалось загрузить аналитику. Попробуйте обновить страницу.");
       });
   }, []);
 
@@ -59,7 +58,7 @@ export function Analytics() {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Аналитика</h1>
         <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
-          Выручка считается по заказам в статусах confirmed, in_pack, shipped, delivered.
+          В выручке учитываем только реальные продажи — без отмен и возвратов.
         </p>
       </header>
 
@@ -93,7 +92,7 @@ export function Analytics() {
             <StatCard
               label="Средний чек"
               value={formatRub(Math.round(data.aov))}
-              hint="за всё время"
+              hint="за все время"
             />
           </section>
 
@@ -102,22 +101,22 @@ export function Analytics() {
             <StatCard
               label="Конверсия"
               value={formatPct(data.conversion_rate)}
-              hint="доставлен / завершённые"
+              hint="дошли до покупателя"
             />
             <StatCard
               label="Возвраты"
               value={formatPct(data.refund_rate)}
-              hint="отменён + возврат"
+              hint="отмены и возвраты"
             />
             <StatCard
               label="Клиенты"
               value={data.unique_customers}
-              hint="уникальных по email"
+              hint="разных покупателей"
             />
             <StatCard
               label="Повторные"
               value={`${data.repeat_customers} · ${formatPct(data.repeat_rate)}`}
-              hint="купили ≥ 2 раза"
+              hint="купили несколько раз"
             />
           </section>
 
@@ -180,7 +179,7 @@ export function Analytics() {
               <div>
                 <div className="text-sm font-semibold tracking-tightish">Ожидают отгрузки</div>
                 <div className="text-[12px] text-ink-muted mt-0.5">
-                  статусы new / confirmed / in_pack
+                  новые, подтвержденные, в сборке
                 </div>
               </div>
               <div className="mt-4 flex items-baseline gap-2">

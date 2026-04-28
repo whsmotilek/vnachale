@@ -14,7 +14,7 @@ export function Login({
   useEffect(() => {
     if (!widgetRef.current || !hasApi) return;
     // Redirect-flow: Telegram при успешной авторизации редиректит браузер
-    // на data-auth-url с query-параметрами. Бэк проверяет подпись, выдаёт JWT
+    // на data-auth-url с query-параметрами. Бэк проверяет подпись, выдает JWT
     // и редиректит обратно на сайт с токеном в #fragment.
     const callbackUrl = `${env.apiBaseUrl}/auth/telegram-callback`;
     const script = document.createElement("script");
@@ -38,10 +38,10 @@ export function Login({
 
         <div className="card p-6 backdrop-blur-sm bg-surface/95">
           <h1 className="text-[15px] font-semibold tracking-tightish">
-            Вход для админов и владельцев
+            Вход для владельцев
           </h1>
           <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
-            Менеджеры и фулфилмент сюда не входят — у них только Telegram-бот.
+            Доступ только для администраторов бренда.
           </p>
 
           <div className="mt-6 flex flex-col items-center gap-3">
@@ -49,9 +49,7 @@ export function Login({
               <div ref={widgetRef} />
             ) : (
               <div className="text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 w-full">
-                API на VPS ещё не подключён. Появится кнопка «Войти через
-                Telegram» после настройки <code className="font-mono">VITE_API_BASE_URL</code> и
-                <code className="font-mono"> /setdomain</code>.
+                Сервис временно недоступен. Если ничего не меняется — напишите Матвею.
               </div>
             )}
             {error && (

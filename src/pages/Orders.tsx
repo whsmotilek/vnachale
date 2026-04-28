@@ -10,7 +10,7 @@ export function Orders() {
 
   useEffect(() => {
     if (!hasApi) {
-      setError("VITE_API_BASE_URL не задан — данные API не подключены.");
+      setError("Сервис временно недоступен.");
       setOrders([]);
       return;
     }
@@ -21,8 +21,8 @@ export function Orders() {
         setOrders(data);
       })
       .catch((e: unknown) => {
-        if (e instanceof ApiError) setError(`API: ${e.message}`);
-        else setError(String(e));
+        if (e instanceof ApiError) setError("Не удалось загрузить заказы. Попробуйте обновить страницу.");
+        else setError("Не удалось загрузить заказы. Попробуйте обновить страницу.");
         setOrders([]);
       });
   }, []);
