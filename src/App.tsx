@@ -34,11 +34,32 @@ export default function App() {
     return hash === "analytics" ? "analytics" : "orders";
   });
 
-  // Bootstrap: если есть валидный JWT — используем его. Иначе если мы внутри Telegram —
-  // пытаемся auto-auth через initData. Иначе показываем Login Widget.
+  // Bootstrap: проверяем варианты в порядке приоритета:
+  //   1. JWT в URL #fragment — пришли из redirect-flow Telegram Login Widget
+  //   2. Сохранённый JWT в localStorage
+  //   3. Внутри Telegram (initData) — auto-auth через WebApp endpoint
+  //   4. Иначе — показываем Login Widget
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // 1. token в URL hash (redirect-flow)
+      const hashMatch = window.location.hash.match(/[#&]token=([^&]+)/);
+      if (hashMatch) {
+        const token = decodeURIComponent(hashMatch[1]);
+        const u = decodeJwtPayload(token);
+        if (u) {
+          setToken(token);
+          // чистим fragment чтобы JWT не светился в адресной строке
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+          if (!cancelled) {
+            setUser(u);
+            setBootstrapping(false);
+          }
+          return;
+        }
+      }
+
+      // 2. сохранённый токен
       const existing = getToken();
       if (existing) {
         const u = decodeJwtPayload(existing);
