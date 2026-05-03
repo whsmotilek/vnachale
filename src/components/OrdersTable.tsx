@@ -25,17 +25,21 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
-const COLUMNS = 8; // chevron, Заказ, Создан, Статус, Клиент, Доставка, Сумма, Трек
+const COLUMNS = 8;
 
-export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
-  const [orders, setOrders] = useState(initialOrders);
-  if (orders !== initialOrders && orders.length === 0) setOrders(initialOrders);
-
+/**
+ * Презентационный компонент. Список заказов и обновления — снаружи (Orders.tsx).
+ * Локально храним только UI-состояние: какой заказ сейчас раскрыт.
+ */
+export function OrdersTable({
+  orders,
+  onUpdate,
+}: {
+  orders: Order[];
+  onUpdate: (orderId: string, patch: Partial<Order>) => void;
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  function updateOrder(orderId: string, patch: Partial<Order>) {
-    setOrders((prev) => prev.map((o) => (o.order_id === orderId ? { ...o, ...patch } : o)));
-  }
   function toggleExpand(id: string) {
     setExpandedId((cur) => (cur === id ? null : id));
   }
@@ -56,7 +60,7 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
 
   return (
     <>
-      {/* === Мобильная верстка: стек карточек === */}
+      {/* === Мобильная верстка === */}
       <div className="lg:hidden flex flex-col gap-2 animate-slide-up-fast">
         {orders.map((o) => (
           <OrderCard
@@ -64,12 +68,12 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
             order={o}
             expanded={expandedId === o.order_id}
             onToggle={() => toggleExpand(o.order_id)}
-            onUpdate={(patch) => updateOrder(o.order_id, patch)}
+            onUpdate={(patch) => onUpdate(o.order_id, patch)}
           />
         ))}
       </div>
 
-      {/* === Десктопная верстка: ОДНА таблица, разворот через colspan-строку === */}
+      {/* === Десктопная таблица === */}
       <div className="hidden lg:block card overflow-hidden animate-slide-up-fast">
         <table className="w-full text-[13px] table-fixed">
           <colgroup>
@@ -123,7 +127,7 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
                       <StatusSelect
                         orderId={o.order_id}
                         current={o.status}
-                        onChanged={(s) => updateOrder(o.order_id, { status: s })}
+                        onChanged={(s) => onUpdate(o.order_id, { status: s })}
                       />
                     </Td>
                     <Td>
@@ -156,7 +160,7 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
                       <td colSpan={COLUMNS} className="p-0 border-t border-line-soft bg-surface-alt">
                         <OrderDetails
                           order={o}
-                          onUpdate={(patch) => updateOrder(o.order_id, patch)}
+                          onUpdate={(patch) => onUpdate(o.order_id, patch)}
                         />
                       </td>
                     </tr>

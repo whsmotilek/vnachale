@@ -5,17 +5,13 @@ import { OrdersTable } from "../components/OrdersTable";
 import { OrdersSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
 
-/** Нормализация телефона для поиска: оставляем только цифры. */
 function normalizePhone(s: string): string {
   return (s || "").replace(/\D+/g, "");
 }
 
-/** Ищем подстроку (case-insensitive) во ВСЕХ значимых полях заказа. */
 function matchesQuery(o: Order, q: string): boolean {
   const query = q.trim().toLowerCase();
   if (!query) return true;
-
-  // Если запрос состоит только из цифр (или почти) — пробуем как телефон/order_id
   const digitsQuery = normalizePhone(query);
   if (digitsQuery && digitsQuery.length >= 3) {
     const digitsPhone = normalizePhone(o.customer_phone);
@@ -23,8 +19,6 @@ function matchesQuery(o: Order, q: string): boolean {
     if (o.order_id.includes(digitsQuery)) return true;
     if (o.track_number && normalizePhone(o.track_number).includes(digitsQuery)) return true;
   }
-
-  // Полнотекстовый поиск по строковым полям
   const haystack = [
     o.order_id,
     o.customer_name,
@@ -38,13 +32,13 @@ function matchesQuery(o: Order, q: string): boolean {
     o.track_number,
   ]
     .filter(Boolean)
-    .join("   ")
+    .join("   ")
     .toLowerCase();
-
   return haystack.includes(query);
 }
 
 export function Orders() {
+  // Источник истины — здесь, наверху. OrdersTable только рендерит и зовёт onUpdate.
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -72,20 +66,25 @@ export function Orders() {
     [orders, q],
   );
 
+  function updateOrder(orderId: string, patch: Partial<Order>) {
+    setOrders((prev) =>
+      prev ? prev.map((o) => (o.order_id === orderId ? { ...o, ...patch } : o)) : prev,
+    );
+  }
+
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
       <header className="mb-5 flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Заказы</h1>
-        {filtered && (
+        {filtered && orders && (
           <div className="text-[13px] text-ink-muted tabular-nums">
             {filtered.length}
-            {q && orders ? ` из ${orders.length}` : ""}
+            {q && filtered.length !== orders.length ? ` из ${orders.length}` : ""}
             {(filtered.length === 1 ? " заказ" : " заказов")}
           </div>
         )}
       </header>
 
-      {/* Поиск */}
       <div className="relative mb-4">
         <Search
           size={15}
@@ -127,7 +126,7 @@ export function Orders() {
           </div>
         </div>
       ) : (
-        <OrdersTable orders={filtered} />
+        <OrdersTable orders={filtered} onUpdate={updateOrder} />
       )}
     </div>
   );
