@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
@@ -35,18 +36,33 @@ const config: Config = {
         tighter2: "-0.025em",
       },
       colors: {
-        // Notion-ish монохром
-        ink: { DEFAULT: "#191919", muted: "#6b6b6b", subtle: "#9b9b9b", soft: "#b3b3b3" },
-        surface: { DEFAULT: "#ffffff", alt: "#fbfbfa", hover: "#f4f4f2", muted: "#efeeec" },
-        line: { DEFAULT: "#e9e9e7", strong: "#d3d3d1", soft: "#f0f0ee" },
-        // Акцент бренда — ровно цвет логотипа
+        // Семантические цвета через CSS-переменные — определены в index.css.
+        // На светлой теме — Notion-палитра. На тёмной — переопределяются в .dark { ... }.
+        ink: {
+          DEFAULT: "rgb(var(--ink) / <alpha-value>)",
+          muted: "rgb(var(--ink-muted) / <alpha-value>)",
+          subtle: "rgb(var(--ink-subtle) / <alpha-value>)",
+          soft: "rgb(var(--ink-soft) / <alpha-value>)",
+        },
+        surface: {
+          DEFAULT: "rgb(var(--surface) / <alpha-value>)",
+          alt: "rgb(var(--surface-alt) / <alpha-value>)",
+          hover: "rgb(var(--surface-hover) / <alpha-value>)",
+          muted: "rgb(var(--surface-muted) / <alpha-value>)",
+        },
+        line: {
+          DEFAULT: "rgb(var(--line) / <alpha-value>)",
+          strong: "rgb(var(--line-strong) / <alpha-value>)",
+          soft: "rgb(var(--line-soft) / <alpha-value>)",
+        },
+        // Акцент бренда — одинаковый в обеих темах.
         brand: {
           DEFAULT: "#1a0088",
           dark: "#11005a",
           hover: "#2410a3",
           ring: "rgba(26, 0, 136, 0.45)",
-          tint: "#f1eeff",
-          tintStrong: "#dcd2ff",
+          tint: "rgb(var(--brand-tint) / <alpha-value>)",
+          tintStrong: "rgb(var(--brand-tint-strong) / <alpha-value>)",
         },
       },
       boxShadow: {
@@ -63,10 +79,7 @@ const config: Config = {
         shimmer: "shimmer 1.6s linear infinite",
       },
       keyframes: {
-        fadeIn: {
-          "0%": { opacity: "0" },
-          "100%": { opacity: "1" },
-        },
+        fadeIn: { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
         slideUp: {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },

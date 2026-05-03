@@ -50,6 +50,7 @@ export interface Order {
   status: string;
   customer_name: string;
   customer_phone: string;
+  customer_email: string;
   items: string;
   total: string;
   payment_status: string;
@@ -57,11 +58,21 @@ export interface Order {
   pickup_point: string;
   delivery_address: string;
   city: string;
+  customer_comment: string;
+  internal_note: string;
+  assigned_to: string;
   track_number: string;
   shipped_at: string;
+  delivered_at: string;
+  source: string;
 }
 
 export interface AnalyticsResponse {
+  period: string;
+  period_from: string | null;
+  period_to: string | null;
+  lifetime_revenue: number;
+  lifetime_orders: number;
   total_revenue: number;
   today_revenue: number;
   week_revenue: number;
@@ -103,8 +114,17 @@ export const api = {
   async orders(): Promise<Order[]> {
     return request("/orders");
   },
-  async analytics(): Promise<AnalyticsResponse> {
-    return request("/analytics");
+  async analytics(opts?: {
+    period?: string;
+    from?: string;
+    to?: string;
+  }): Promise<AnalyticsResponse> {
+    const qs = new URLSearchParams();
+    if (opts?.period) qs.set("period", opts.period);
+    if (opts?.from) qs.set("period_from", opts.from);
+    if (opts?.to) qs.set("period_to", opts.to);
+    const tail = qs.toString();
+    return request(`/analytics${tail ? "?" + tail : ""}`);
   },
   async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
     await request(`/orders/${encodeURIComponent(orderId)}/status`, {

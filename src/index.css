@@ -2,46 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === Семантические цвета через CSS-переменные === */
 @layer base {
+  :root {
+    /* Светлая тема — Notion-палитра */
+    --surface:        255 255 255;
+    --surface-alt:    251 251 250;
+    --surface-hover:  244 244 242;
+    --surface-muted:  239 238 236;
+    --ink:             25  25  25;
+    --ink-muted:      107 107 107;
+    --ink-subtle:     155 155 155;
+    --ink-soft:       179 179 179;
+    --line:           233 233 231;
+    --line-strong:    211 211 209;
+    --line-soft:      240 240 238;
+    --brand-tint:        241 238 255;
+    --brand-tint-strong: 220 210 255;
+  }
+
+  .dark {
+    /* Тёмная тема — глубокий нейтральный графит, акцент бренда яркий */
+    --surface:         16  16  18;
+    --surface-alt:     22  22  24;
+    --surface-hover:   30  30  33;
+    --surface-muted:   38  38  42;
+    --ink:            234 234 234;
+    --ink-muted:      170 170 175;
+    --ink-subtle:     120 120 128;
+    --ink-soft:        88  88  95;
+    --line:            42  42  48;
+    --line-strong:     58  58  65;
+    --line-soft:       30  30  35;
+    --brand-tint:        38  18 110;
+    --brand-tint-strong: 56  30 138;
+  }
+
   html {
     scroll-behavior: smooth;
   }
   html, body, #root {
-    background: theme(colors.surface.DEFAULT);
-    color: theme(colors.ink.DEFAULT);
+    background: rgb(var(--surface));
+    color: rgb(var(--ink));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Inter OpenType фичи: cv11 — упрощенная 'l', ss01 — cleaner alternates,
-       tnum — табличные цифры (одинаковая ширина), zero — slashed zero */
     font-feature-settings: "ss01", "cv11", "cv05", "cv09", "calt";
     min-height: 100%;
   }
-  body {
-    font-variant-ligatures: contextual;
-  }
+  body { font-variant-ligatures: contextual; }
 
   ::selection {
-    background: theme(colors.brand.tintStrong);
+    background: rgb(var(--brand-tint-strong));
     color: theme(colors.brand.dark);
   }
+  .dark ::selection {
+    color: #fff;
+  }
 
-  /* Скроллбар — тонкий, нейтральный */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb {
-    background: theme(colors.line.strong);
+    background: rgb(var(--line-strong));
     border-radius: 4px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: theme(colors.ink.soft); }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-soft)); }
 
-  /* Focus: акцент бренда */
   :focus-visible {
     outline: none;
     box-shadow: theme(boxShadow.focusBrand);
     border-radius: 4px;
   }
 
-  /* Числа везде идут табличные, чтобы суммы выравнивались */
   .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
@@ -49,26 +80,28 @@
   .card {
     @apply bg-surface border border-line rounded-lg shadow-card transition-shadow duration-200;
   }
+  .dark .card {
+    box-shadow: 0 1px 0 rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  }
   .card-hover {
     @apply hover:shadow-cardHover hover:border-line-strong;
   }
   .row-hover {
     @apply transition-colors duration-150 hover:bg-surface-hover;
   }
-  /* Подложка с очень легким акцентом бренда */
   .bg-brand-veil {
     background:
-      radial-gradient(1200px 600px at 100% -100px, rgba(26, 0, 136, 0.06), transparent 60%),
-      radial-gradient(800px 400px at 0% 110%, rgba(26, 0, 136, 0.04), transparent 60%),
-      theme(colors.surface.DEFAULT);
+      radial-gradient(1200px 600px at 100% -100px, rgba(26, 0, 136, 0.08), transparent 60%),
+      radial-gradient(800px 400px at 0% 110%, rgba(26, 0, 136, 0.05), transparent 60%),
+      rgb(var(--surface));
   }
   .skeleton {
     @apply rounded;
     background: linear-gradient(
       90deg,
-      theme(colors.line.soft) 0%,
-      theme(colors.surface.muted) 40%,
-      theme(colors.line.soft) 80%
+      rgb(var(--line-soft)) 0%,
+      rgb(var(--surface-muted)) 40%,
+      rgb(var(--line-soft)) 80%
     );
     background-size: 800px 100%;
     animation: shimmer 1.6s linear infinite;
@@ -76,6 +109,5 @@
 }
 
 @layer utilities {
-  /* Поддержка Telegram-овской цветовой схемы (на потом) */
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
