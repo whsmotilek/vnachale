@@ -37,7 +37,7 @@ const config: Config = {
       },
       colors: {
         // Семантические цвета через CSS-переменные — определены в index.css.
-        // На светлой теме — Notion-палитра. На тёмной — переопределяются в .dark { ... }.
+        // На светлой теме — Notion-палитра. На темной — переопределяются в .dark { ... }.
         ink: {
           DEFAULT: "rgb(var(--ink) / <alpha-value>)",
           muted: "rgb(var(--ink-muted) / <alpha-value>)",

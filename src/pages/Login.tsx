@@ -133,7 +133,7 @@ function PasswordForm({
       setError(
         err instanceof Error && /401/.test(err.message)
           ? "Неверный логин или пароль."
-          : "Не удалось войти. Попробуйте ещё раз.",
+          : "Не удалось войти. Попробуйте еще раз.",
       );
     } finally {
       setBusy(false);

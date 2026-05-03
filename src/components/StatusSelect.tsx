@@ -30,7 +30,7 @@ const OPTIONS: Array<{ value: string; label: string; cls: string }> = [
   },
   {
     value: "cancelled",
-    label: "Отменён",
+    label: "Отменен",
     cls: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-700/40 dark:text-slate-200 dark:border-slate-600",
   },
   {

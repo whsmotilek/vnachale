@@ -16,7 +16,7 @@ GitHub Pages (static SPA)        VPS (FastAPI)               Google Sheets
 
 - На фронте секретов нет — только публичные данные (bot username).
 - `BOT_TOKEN` и ключ Google живут только на VPS.
-- Авторизация: Telegram Login Widget → POST на VPS API → API верифицирует HMAC и выдаёт JWT → SPA сохраняет JWT в localStorage и шлёт `Authorization: Bearer …` во все запросы.
+- Авторизация: Telegram Login Widget → POST на VPS API → API верифицирует HMAC и выдает JWT → SPA сохраняет JWT в localStorage и шлет `Authorization: Bearer …` во все запросы.
 
 ## Локальный запуск
 
@@ -25,7 +25,7 @@ npm install
 VITE_API_BASE_URL=https://your-vps-api npm run dev
 ```
 
-Откроется http://localhost:5173. Без `VITE_API_BASE_URL` сайт собирается, но показывает баннер «API не подключён» вместо данных.
+Откроется http://localhost:5173. Без `VITE_API_BASE_URL` сайт собирается, но показывает баннер «API не подключен» вместо данных.
 
 ## Деплой
 
@@ -37,7 +37,7 @@ VITE_API_BASE_URL=https://your-vps-api npm run dev
    - `VITE_BOT_USERNAME` — `vnachale_manager_bot` (по умолчанию).
 3. **@BotFather → /setdomain** → ввести `whsmotilek.github.io`.
 
-После пуша в `main`: Actions соберёт `dist/`, опубликует на `https://whsmotilek.github.io/vnachale/`.
+После пуша в `main`: Actions соберет `dist/`, опубликует на `https://whsmotilek.github.io/vnachale/`.
 
 ## Структура
 
@@ -48,7 +48,7 @@ web/
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx                  state-based router (orders ⇆ analytics)
-│   ├── env.ts                   import.meta.env обёртка
+│   ├── env.ts                   import.meta.env обертка
 │   ├── api.ts                   fetch + JWT
 │   ├── pages/                   Login, Orders, Analytics
 │   └── components/              Logo, Nav, OrdersTable, StatusBadge, StatCard

@@ -27,18 +27,18 @@ const DELIVERY_LABELS: Record<string, string> = {
 };
 const STATUS_LABELS: Record<string, string> = {
   new: "Новые",
-  confirmed: "Подтверждённые",
+  confirmed: "Подтвержденные",
   in_pack: "В сборке",
   shipped: "Отгруженные",
   delivered: "Доставленные",
   refunded: "Возвраты",
-  cancelled: "Отменённые",
+  cancelled: "Отмененные",
 };
 
 type PeriodKey = "all" | "today" | "week" | "month" | "year" | "custom";
 
 const PRESETS: Array<{ key: PeriodKey; label: string }> = [
-  { key: "all", label: "За всё время" },
+  { key: "all", label: "За все время" },
   { key: "today", label: "Сегодня" },
   { key: "week", label: "Неделя" },
   { key: "month", label: "Месяц" },
@@ -76,7 +76,7 @@ export function Analytics() {
 
   const subtitle = (() => {
     if (!data) return "";
-    if (period === "all") return "за всё время";
+    if (period === "all") return "за все время";
     if (period === "today") return "сегодня";
     if (period === "week") return "за эту неделю";
     if (period === "month") return "за этот месяц";
@@ -99,7 +99,7 @@ export function Analytics() {
         </p>
       </header>
 
-      {/* === Hero: общая выручка за всё время === */}
+      {/* === Hero: общая выручка за все время === */}
       {data && (
         <section className="mb-6 animate-fade-in">
           <div className="card relative overflow-hidden">
@@ -112,7 +112,7 @@ export function Analytics() {
             />
             <div className="relative p-5 lg:p-7">
               <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium">
-                Общая выручка за всё время
+                Общая выручка за все время
               </div>
               <div className="mt-2 text-4xl lg:text-5xl font-semibold tracking-tighter2 tabular-nums text-brand-dark dark:text-white">
                 {formatRub(data.lifetime_revenue)}

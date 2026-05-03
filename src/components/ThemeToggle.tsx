@@ -24,7 +24,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       role="switch"
       aria-checked={isDark}
-      title={isDark ? "Светлая тема" : "Тёмная тема"}
+      title={isDark ? "Светлая тема" : "Темная тема"}
       className={clsx(
         "relative inline-flex items-center w-12 h-6 rounded-full transition-colors duration-200",
         "border border-line",
