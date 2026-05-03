@@ -2,13 +2,32 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/vnachale/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Vnachale — admin</title>
+
+    <!-- favicon (десктоп / Android Chrome) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/vnachale/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/vnachale/icon-192.png" />
+
+    <!-- iOS home screen icon (Safari игнорирует обычный favicon, нужен этот тег и PNG 180x180 без прозрачности) -->
+    <link rel="apple-touch-icon" href="/vnachale/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/vnachale/apple-touch-icon.png" />
+
+    <!-- Имя ярлыка на iOS-домашнем экране (по умолчанию берётся <title>, который у нас длинный) -->
+    <meta name="apple-mobile-web-app-title" content="Vnachale" />
+    <!-- Запуск как «нативное» приложение без браузерных контролов -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Цвет адресной строки и status bar в Android Chrome / PWA -->
+    <meta name="theme-color" content="#1a0088" />
+
+    <!-- PWA-манифест: name, иконки, цвета. Используется Android и desktop Chrome для установки. -->
+    <link rel="manifest" href="/vnachale/manifest.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" />
-    <!-- Telegram WebApp SDK: при открытии внутри Telegram дает нам initData для авторизации -->
+    <!-- Telegram WebApp SDK: при открытии внутри Telegram даёт нам initData для авторизации -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body class="font-sans antialiased">

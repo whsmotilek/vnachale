@@ -1,0 +1,15 @@
+{
+  "name": "Vnachale — admin",
+  "short_name": "Vnachale",
+  "description": "Внутренняя панель бренда Vnachale",
+  "start_url": "/vnachale/",
+  "scope": "/vnachale/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a0088",
+  "theme_color": "#1a0088",
+  "icons": [
+    { "src": "/vnachale/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/vnachale/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
