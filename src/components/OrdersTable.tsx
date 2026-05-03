@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import type { Order } from "../api";
@@ -25,19 +25,17 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
+const COLUMNS = 8; // chevron, Заказ, Создан, Статус, Клиент, Доставка, Сумма, Трек
+
 export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
   const [orders, setOrders] = useState(initialOrders);
   if (orders !== initialOrders && orders.length === 0) setOrders(initialOrders);
 
-  // ID раскрытого заказа (десктоп и мобила работают синхронно).
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  function updateStatus(orderId: string, newStatus: string) {
-    setOrders((prev) =>
-      prev.map((o) => (o.order_id === orderId ? { ...o, status: newStatus } : o)),
-    );
+  function updateOrder(orderId: string, patch: Partial<Order>) {
+    setOrders((prev) => prev.map((o) => (o.order_id === orderId ? { ...o, ...patch } : o)));
   }
-
   function toggleExpand(id: string) {
     setExpandedId((cur) => (cur === id ? null : id));
   }
@@ -55,6 +53,7 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
       </div>
     );
   }
+
   return (
     <>
       {/* === Мобильная верстка: стек карточек === */}
@@ -65,14 +64,24 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
             order={o}
             expanded={expandedId === o.order_id}
             onToggle={() => toggleExpand(o.order_id)}
-            onStatusChange={updateStatus}
+            onUpdate={(patch) => updateOrder(o.order_id, patch)}
           />
         ))}
       </div>
 
-      {/* === Десктопная верстка: таблица === */}
+      {/* === Десктопная верстка: ОДНА таблица, разворот через colspan-строку === */}
       <div className="hidden lg:block card overflow-hidden animate-slide-up-fast">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-[13px] table-fixed">
+          <colgroup>
+            <col className="w-8" />
+            <col className="w-[120px]" />
+            <col className="w-[110px]" />
+            <col className="w-[150px]" />
+            <col className="w-[200px]" />
+            <col />
+            <col className="w-[110px]" />
+            <col className="w-[140px]" />
+          </colgroup>
           <thead className="bg-surface-alt border-b border-line text-ink-muted">
             <tr>
               <Th />
@@ -89,75 +98,70 @@ export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
             {orders.map((o) => {
               const expanded = expandedId === o.order_id;
               return (
-                <tr key={o.order_id}>
-                  <td colSpan={8} className="p-0">
-                    <div
-                      className={clsx(
-                        "border-t border-line transition-colors cursor-pointer",
-                        expanded ? "bg-surface-hover" : "hover:bg-surface-hover",
+                <Fragment key={o.order_id}>
+                  <tr
+                    onClick={() => toggleExpand(o.order_id)}
+                    className={clsx(
+                      "border-t border-line cursor-pointer transition-colors",
+                      expanded ? "bg-surface-hover" : "hover:bg-surface-hover",
+                    )}
+                  >
+                    <Td className="text-center">
+                      <ChevronDown
+                        size={14}
+                        className={clsx(
+                          "inline-block text-ink-soft transition-transform duration-200",
+                          expanded && "rotate-180 text-brand",
+                        )}
+                      />
+                    </Td>
+                    <Td>
+                      <span className="font-mono text-[12px] text-ink-muted">{o.order_id}</span>
+                    </Td>
+                    <Td className="whitespace-nowrap">{formatDate(o.created_at)}</Td>
+                    <Td onClick={(e) => e.stopPropagation()}>
+                      <StatusSelect
+                        orderId={o.order_id}
+                        current={o.status}
+                        onChanged={(s) => updateOrder(o.order_id, { status: s })}
+                      />
+                    </Td>
+                    <Td>
+                      <div className="truncate text-ink">{o.customer_name || "—"}</div>
+                      {o.city && <div className="text-ink-subtle text-[11px] truncate">{o.city}</div>}
+                    </Td>
+                    <Td>
+                      <div className="truncate text-ink">{o.delivery_method || "—"}</div>
+                      {(o.pickup_point || o.delivery_address) && (
+                        <div className="text-ink-subtle text-[11px] truncate">
+                          {o.pickup_point || o.delivery_address}
+                        </div>
                       )}
-                      onClick={() => toggleExpand(o.order_id)}
-                    >
-                      <table className="w-full text-[13px]">
-                        <tbody>
-                          <tr>
-                            <Td className="w-8 text-center">
-                              <ChevronDown
-                                size={14}
-                                className={clsx(
-                                  "inline-block text-ink-soft transition-transform duration-200",
-                                  expanded && "rotate-180 text-brand",
-                                )}
-                              />
-                            </Td>
-                            <Td>
-                              <span className="font-mono text-[12px] text-ink-muted">{o.order_id}</span>
-                            </Td>
-                            <Td>{formatDate(o.created_at)}</Td>
-                            <Td onClick={(e) => e.stopPropagation()}>
-                              <StatusSelect
-                                orderId={o.order_id}
-                                current={o.status}
-                                onChanged={(s) => updateStatus(o.order_id, s)}
-                              />
-                            </Td>
-                            <Td>
-                              <div className="truncate max-w-[180px] text-ink">
-                                {o.customer_name || "—"}
-                              </div>
-                              {o.city && (
-                                <div className="text-ink-subtle text-[11px]">{o.city}</div>
-                              )}
-                            </Td>
-                            <Td>
-                              <div className="truncate max-w-[200px] text-ink">
-                                {o.delivery_method || "—"}
-                              </div>
-                              {(o.pickup_point || o.delivery_address) && (
-                                <div className="text-ink-subtle text-[11px] truncate max-w-[200px]">
-                                  {o.pickup_point || o.delivery_address}
-                                </div>
-                              )}
-                            </Td>
-                            <Td align="right" className="tabular-nums font-medium">
-                              {formatRub(o.total)}
-                            </Td>
-                            <Td>
-                              {o.track_number ? (
-                                <span className="font-mono text-[11px] text-ink-muted">
-                                  {o.track_number}
-                                </span>
-                              ) : (
-                                <span className="text-ink-soft">—</span>
-                              )}
-                            </Td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      {expanded && <OrderDetails order={o} />}
-                    </div>
-                  </td>
-                </tr>
+                    </Td>
+                    <Td align="right" className="tabular-nums font-medium whitespace-nowrap">
+                      {formatRub(o.total)}
+                    </Td>
+                    <Td>
+                      {o.track_number ? (
+                        <span className="font-mono text-[11px] text-ink-muted truncate block">
+                          {o.track_number}
+                        </span>
+                      ) : (
+                        <span className="text-ink-soft">—</span>
+                      )}
+                    </Td>
+                  </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={COLUMNS} className="p-0 border-t border-line-soft bg-surface-alt">
+                        <OrderDetails
+                          order={o}
+                          onUpdate={(patch) => updateOrder(o.order_id, patch)}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -201,7 +205,7 @@ function Td({
     <td
       onClick={onClick}
       className={clsx(
-        "px-3 py-2.5 align-top",
+        "px-3 py-2.5 align-top overflow-hidden",
         align === "right" && "text-right",
         className,
       )}

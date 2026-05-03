@@ -1,6 +1,7 @@
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Check, Copy } from "lucide-react";
-import type { Order } from "../api";
+import { Check, Copy, Pencil } from "lucide-react";
+import { api, type Order } from "../api";
 import { useCopy } from "../hooks/useCopy";
 
 function formatRub(value: string | number): string {
@@ -38,11 +39,13 @@ const DELIVERY_LABELS: Record<string, string> = {
   self_pickup: "Самовывоз",
 };
 
-/**
- * Подробная карточка заказа — раскрывается при клике на строку/карточку.
- * Каждое значимое поле кликабельно — копирует текст в буфер обмена.
- */
-export function OrderDetails({ order }: { order: Order }) {
+export function OrderDetails({
+  order,
+  onUpdate,
+}: {
+  order: Order;
+  onUpdate?: (patch: Partial<Order>) => void;
+}) {
   const { copiedKey, copy } = useCopy();
 
   function CopyValue({
@@ -72,7 +75,7 @@ export function OrderDetails({ order }: { order: Order }) {
           "group inline-flex items-start gap-1.5 text-left rounded px-1.5 -ml-1.5 py-0.5",
           "transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none",
           mono && "font-mono",
-          multiline ? "text-[13px]" : "text-[13px]",
+          "text-[13px]",
         )}
       >
         <span className={clsx("text-ink", multiline && "whitespace-pre-line break-words")}>
@@ -81,7 +84,9 @@ export function OrderDetails({ order }: { order: Order }) {
         <span
           className={clsx(
             "shrink-0 mt-0.5 transition-opacity",
-            isCopied ? "opacity-100 text-emerald-600 dark:text-emerald-400" : "opacity-0 group-hover:opacity-50 text-ink-soft",
+            isCopied
+              ? "opacity-100 text-emerald-600 dark:text-emerald-400"
+              : "opacity-0 group-hover:opacity-50 text-ink-soft",
           )}
         >
           {isCopied ? <Check size={12} /> : <Copy size={11} />}
@@ -123,7 +128,6 @@ export function OrderDetails({ order }: { order: Order }) {
       className="bg-surface-alt border-t border-line p-4 lg:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Идентификация */}
       <Row label="Номер заказа">
         <CopyValue fieldKey="order_id" text={order.order_id} mono />
       </Row>
@@ -138,7 +142,6 @@ export function OrderDetails({ order }: { order: Order }) {
         <span className="text-[13px] text-ink-muted">{order.source || "—"}</span>
       </Row>
 
-      {/* Клиент */}
       <Row label="ФИО клиента" full>
         <CopyValue fieldKey="name" text={order.customer_name} />
       </Row>
@@ -149,7 +152,6 @@ export function OrderDetails({ order }: { order: Order }) {
         <CopyValue fieldKey="email" text={order.customer_email} />
       </Row>
 
-      {/* Товары + сумма */}
       <Row label="Товары" full>
         <CopyValue fieldKey="items" text={order.items} multiline />
       </Row>
@@ -160,7 +162,6 @@ export function OrderDetails({ order }: { order: Order }) {
         <span className="text-[13px] text-ink">{payLabel}</span>
       </Row>
 
-      {/* Доставка */}
       <Row label="Способ доставки">
         <span className="text-[13px] text-ink">{deliveryLabel}</span>
       </Row>
@@ -177,9 +178,14 @@ export function OrderDetails({ order }: { order: Order }) {
         </Row>
       )}
 
-      {/* Логистика */}
-      <Row label="Трек-номер">
-        <CopyValue fieldKey="track" text={order.track_number} mono />
+      <Row label="Трек-номер" full>
+        <TrackEditor
+          orderId={order.order_id}
+          value={order.track_number}
+          copy={copy}
+          copiedKey={copiedKey}
+          onUpdate={(track) => onUpdate?.({ track_number: track })}
+        />
       </Row>
       {order.shipped_at && (
         <Row label="Отгружен">
@@ -192,7 +198,6 @@ export function OrderDetails({ order }: { order: Order }) {
         </Row>
       )}
 
-      {/* Комментарии */}
       {order.customer_comment && (
         <Row label="Комментарий клиента" full>
           <CopyValue fieldKey="comment" text={order.customer_comment} multiline />
@@ -208,6 +213,152 @@ export function OrderDetails({ order }: { order: Order }) {
           <span className="text-[13px] text-ink">{order.assigned_to}</span>
         </Row>
       )}
+    </div>
+  );
+}
+
+function TrackEditor({
+  orderId,
+  value,
+  copy,
+  copiedKey,
+  onUpdate,
+}: {
+  orderId: string;
+  value: string;
+  copy: (text: string, key: string) => Promise<void>;
+  copiedKey: string | null;
+  onUpdate: (track: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // если со стороны API трек поменяли (другой инициатор) — синхронизируемся
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  async function save() {
+    const trimmed = draft.trim();
+    if (trimmed === value) {
+      setEditing(false);
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.updateOrderTrack(orderId, trimmed);
+      onUpdate(trimmed);
+      setEditing(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancel() {
+    setDraft(value);
+    setErr(null);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancel();
+            }}
+            disabled={busy}
+            placeholder="Введите трек-номер"
+            className="font-mono text-[13px] flex-1 border border-line rounded px-2 py-1 bg-surface text-ink focus:outline-none focus:border-brand transition-colors disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy}
+            className="px-2.5 py-1 text-[12px] rounded-md bg-brand text-white hover:bg-brand-hover transition-colors disabled:opacity-50 font-medium"
+          >
+            {busy ? "…" : "Сохранить"}
+          </button>
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={busy}
+            className="px-2 py-1 text-[12px] rounded-md border border-line text-ink-muted hover:bg-surface-hover transition-colors"
+          >
+            Отмена
+          </button>
+        </div>
+        {err && (
+          <div className="text-[11px] text-rose-700 dark:text-rose-300">{err}</div>
+        )}
+      </div>
+    );
+  }
+
+  // Просмотр
+  const isCopied = copiedKey === `${orderId}:track`;
+  if (!value) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="inline-flex items-center gap-1.5 text-[13px] text-brand hover:text-brand-hover transition-colors"
+      >
+        <Pencil size={12} />
+        Добавить трек-номер
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => copy(value, `${orderId}:track`)}
+        className="group inline-flex items-start gap-1.5 text-left rounded px-1.5 -ml-1.5 py-0.5 transition-colors hover:bg-surface-hover font-mono text-[13px]"
+        title="Кликните чтобы скопировать"
+      >
+        <span className="text-ink">{value}</span>
+        <span
+          className={clsx(
+            "shrink-0 mt-0.5 transition-opacity",
+            isCopied
+              ? "opacity-100 text-emerald-600 dark:text-emerald-400"
+              : "opacity-0 group-hover:opacity-50 text-ink-soft",
+          )}
+        >
+          {isCopied ? <Check size={12} /> : <Copy size={11} />}
+        </span>
+        {isCopied && (
+          <span className="ml-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium tracking-tightish">
+            Скопировано
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="ml-1 text-ink-soft hover:text-brand transition-colors"
+        title="Изменить"
+        aria-label="Изменить трек-номер"
+      >
+        <Pencil size={12} />
+      </button>
     </div>
   );
 }

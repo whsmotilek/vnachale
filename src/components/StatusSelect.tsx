@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import { api } from "../api";
 
@@ -60,7 +61,6 @@ export function StatusSelect({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // если входной current изменился (рефетч списка) — синхронизируемся
   useEffect(() => setValue(current), [current]);
 
   const cur = OPTIONS.find((o) => o.value === value);
@@ -121,17 +121,19 @@ export function StatusSelect({
         </select>
       </div>
 
-      {pending !== null && (
-        <ConfirmModal
-          fromLabel={labelOf(value)}
-          toLabel={labelOf(pending)}
-          orderId={orderId}
-          busy={busy}
-          error={err}
-          onConfirm={confirm}
-          onCancel={cancel}
-        />
-      )}
+      {pending !== null &&
+        createPortal(
+          <ConfirmModal
+            fromLabel={labelOf(value)}
+            toLabel={labelOf(pending)}
+            orderId={orderId}
+            busy={busy}
+            error={err}
+            onConfirm={confirm}
+            onCancel={cancel}
+          />,
+          document.body,
+        )}
     </>
   );
 }
@@ -153,22 +155,27 @@ function ConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  // Закрытие по Esc
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) onCancel();
       if (e.key === "Enter" && !busy) onConfirm();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // блокируем скролл фона на время модалки
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [busy, onCancel, onConfirm]);
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 animate-fade-in"
+      className="fixed inset-0 z-[1000] flex items-center justify-center px-4 animate-fade-in"
       onClick={busy ? undefined : onCancel}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
       <div
         className="relative w-full max-w-sm card p-5 animate-scale-in"
         onClick={(e) => e.stopPropagation()}

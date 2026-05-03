@@ -23,17 +23,16 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
-/** Карточка заказа для мобилы. Кликабельна — раскрывается с деталями. */
 export function OrderCard({
   order,
   expanded,
   onToggle,
-  onStatusChange,
+  onUpdate,
 }: {
   order: Order;
   expanded: boolean;
   onToggle: () => void;
-  onStatusChange?: (orderId: string, newStatus: string) => void;
+  onUpdate?: (patch: Partial<Order>) => void;
 }) {
   return (
     <article
@@ -55,7 +54,7 @@ export function OrderCard({
             <StatusSelect
               orderId={order.order_id}
               current={order.status}
-              onChanged={(s) => onStatusChange?.(order.order_id, s)}
+              onChanged={(s) => onUpdate?.({ status: s })}
             />
           </div>
         </header>
@@ -93,7 +92,7 @@ export function OrderCard({
         </div>
       </div>
 
-      {expanded && <OrderDetails order={order} />}
+      {expanded && <OrderDetails order={order} onUpdate={onUpdate} />}
     </article>
   );
 }

@@ -132,4 +132,10 @@ export const api = {
       body: JSON.stringify({ status: newStatus }),
     });
   },
+  async updateOrderTrack(orderId: string, trackNumber: string): Promise<void> {
+    await request(`/orders/${encodeURIComponent(orderId)}/track`, {
+      method: "PATCH",
+      body: JSON.stringify({ track_number: trackNumber }),
+    });
+  },
 };
