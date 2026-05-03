@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { Order } from "../api";
-import { StatusBadge } from "./StatusBadge";
+import { StatusSelect } from "./StatusSelect";
 import { OrderCard } from "./OrderCard";
 import clsx from "clsx";
 
@@ -22,7 +23,18 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
-export function OrdersTable({ orders }: { orders: Order[] }) {
+export function OrdersTable({ orders: initialOrders }: { orders: Order[] }) {
+  // локальное состояние, чтобы оптимистично менять статусы без перезагрузки
+  const [orders, setOrders] = useState(initialOrders);
+  // если входной prop поменялся (refetch) — синхронизируемся
+  if (orders !== initialOrders && orders.length === 0) setOrders(initialOrders);
+
+  function updateStatus(orderId: string, newStatus: string) {
+    setOrders((prev) =>
+      prev.map((o) => (o.order_id === orderId ? { ...o, status: newStatus } : o)),
+    );
+  }
+
   if (orders.length === 0) {
     return (
       <div className="card p-10 text-center text-ink-muted animate-slide-up-fast">
@@ -41,7 +53,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
       {/* === Мобильная верстка: стек карточек === */}
       <div className="lg:hidden flex flex-col gap-2 animate-slide-up-fast">
         {orders.map((o) => (
-          <OrderCard key={o.order_id} order={o} />
+          <OrderCard key={o.order_id} order={o} onStatusChange={updateStatus} />
         ))}
       </div>
 
@@ -67,7 +79,11 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                 </Td>
                 <Td>{formatDate(o.created_at)}</Td>
                 <Td>
-                  <StatusBadge status={o.status} />
+                  <StatusSelect
+                    orderId={o.order_id}
+                    current={o.status}
+                    onChanged={(s) => updateStatus(o.order_id, s)}
+                  />
                 </Td>
                 <Td>
                   <div className="truncate max-w-[180px] text-ink">{o.customer_name || "—"}</div>

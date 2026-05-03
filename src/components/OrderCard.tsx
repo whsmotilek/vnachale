@@ -1,5 +1,5 @@
 import type { Order } from "../api";
-import { StatusBadge } from "./StatusBadge";
+import { StatusSelect } from "./StatusSelect";
 
 function formatRub(value: string | number): string {
   const n =
@@ -21,7 +21,13 @@ function formatDate(iso: string): string {
 }
 
 /** Компактная карточка заказа — для мобилы. На десктопе показываем таблицу. */
-export function OrderCard({ order }: { order: Order }) {
+export function OrderCard({
+  order,
+  onStatusChange,
+}: {
+  order: Order;
+  onStatusChange?: (orderId: string, newStatus: string) => void;
+}) {
   return (
     <article className="card p-3.5 transition-shadow duration-200 hover:shadow-cardHover">
       <header className="flex items-start justify-between gap-3 mb-2">
@@ -31,7 +37,11 @@ export function OrderCard({ order }: { order: Order }) {
             {order.customer_name || "—"}
           </div>
         </div>
-        <StatusBadge status={order.status} />
+        <StatusSelect
+          orderId={order.order_id}
+          current={order.status}
+          onChanged={(s) => onStatusChange?.(order.order_id, s)}
+        />
       </header>
 
       {order.items && (

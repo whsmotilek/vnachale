@@ -94,10 +94,22 @@ export const api = {
       body: JSON.stringify({ init_data: initData }),
     });
   },
+  async authPassword(username: string, password: string): Promise<{ token: string }> {
+    return request("/auth/password", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+  },
   async orders(): Promise<Order[]> {
     return request("/orders");
   },
   async analytics(): Promise<AnalyticsResponse> {
     return request("/analytics");
+  },
+  async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
+    await request(`/orders/${encodeURIComponent(orderId)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: newStatus }),
+    });
   },
 };
