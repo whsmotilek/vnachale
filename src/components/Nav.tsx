@@ -23,8 +23,10 @@ export function Nav({
 }) {
   return (
     <>
-      {/* === Топ-бар: мобильный === */}
-      <nav className="lg:hidden flex items-center justify-between border-b border-line bg-surface-alt px-3 py-2 gap-2 animate-fade-in">
+      {/* === Топ-бар: мобильный.
+           sticky-top-safe + safe-top — чтобы остаться видимым при скролле
+           и не уехать под status bar iOS (notch / dynamic island). === */}
+      <nav className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface-alt/95 backdrop-blur-sm px-3 pb-2 safe-top gap-2 animate-fade-in">
         <Brand size={22} textClass="text-[14px] font-semibold" />
         <div className="flex gap-1">
           {items.map(({ id, label, Icon }) => {

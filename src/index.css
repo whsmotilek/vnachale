@@ -109,5 +109,18 @@
 }
 
 @layer utilities {
-  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  /* iOS notch / dynamic island / status bar — резервируем место сверху,
+     минимум 0.5rem (для красоты в Telegram WebApp где safe-area = 0). */
+  .safe-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+  .safe-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  /* Прилипает к верху, но НЕ перекрывается status bar'ом iOS */
+  .sticky-top-safe {
+    position: sticky;
+    top: 0;
+    /* Высота status bar учитывается через safe-top на самом элементе */
+  }
 }
