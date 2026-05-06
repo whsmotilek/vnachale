@@ -64,7 +64,11 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
   const fmtDate = (s: string) => {
     const d = new Date(s);
     if (Number.isNaN(d.getTime())) return s;
-    return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short" }).format(d);
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "short",
+      timeZone: "Europe/Moscow",
+    }).format(d);
   };
 
   return (

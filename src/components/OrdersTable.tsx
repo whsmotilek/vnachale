@@ -17,11 +17,14 @@ function formatDate(iso: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
+  // Бренд работает в МСК — показываем время заказа в МСК независимо
+  // от TZ браузера владельца, который может быть в другой локали.
   return new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Moscow",
   }).format(d);
 }
 
