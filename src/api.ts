@@ -93,6 +93,31 @@ export interface AnalyticsResponse {
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
 }
 
+export interface OzonAnalyticsResponse {
+  period: string;
+  period_from: string | null;
+  period_to: string | null;
+  lifetime_revenue: number;
+  lifetime_postings: number;
+  total_revenue: number;
+  total_commission: number;
+  total_payout: number;
+  total_postings: number;
+  today_revenue: number;
+  week_revenue: number;
+  month_revenue: number;
+  aov: number;
+  cancel_rate: number;
+  cancelled_count: number;
+  status_counts: Record<string, number>;
+  scheme_counts: Record<string, number>;
+  top_cities: Array<[string, number]>;
+  top_warehouses: Array<[string, number]>;
+  top_products: Array<[string, number]>;
+  top_skus: Array<[string, number]>;
+  daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
+}
+
 // === методы ===
 
 export const api = {
@@ -125,6 +150,18 @@ export const api = {
     if (opts?.to) qs.set("period_to", opts.to);
     const tail = qs.toString();
     return request(`/analytics${tail ? "?" + tail : ""}`);
+  },
+  async ozonAnalytics(opts?: {
+    period?: string;
+    from?: string;
+    to?: string;
+  }): Promise<OzonAnalyticsResponse> {
+    const qs = new URLSearchParams();
+    if (opts?.period) qs.set("period", opts.period);
+    if (opts?.from) qs.set("period_from", opts.from);
+    if (opts?.to) qs.set("period_to", opts.to);
+    const tail = qs.toString();
+    return request(`/ozon/analytics${tail ? "?" + tail : ""}`);
   },
   async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
     await request(`/orders/${encodeURIComponent(orderId)}/status`, {

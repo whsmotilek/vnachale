@@ -1,13 +1,14 @@
-import { LayoutGrid, LineChart, LogOut } from "lucide-react";
+import { LayoutGrid, LineChart, LogOut, ShoppingBag } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders" | "analytics";
+type Page = "orders" | "analytics" | "ozon";
 
 const items: Array<{ id: Page; label: string; Icon: typeof LayoutGrid }> = [
   { id: "orders", label: "Заказы", Icon: LayoutGrid },
   { id: "analytics", label: "Аналитика", Icon: LineChart },
+  { id: "ozon", label: "Ozon", Icon: ShoppingBag },
 ];
 
 export function Nav({
