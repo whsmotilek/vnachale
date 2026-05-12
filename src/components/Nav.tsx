@@ -1,4 +1,5 @@
-import { LayoutGrid, LineChart, LogOut, ShoppingBag } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, LayoutGrid, LineChart, LogOut, ShoppingBag } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -22,43 +23,134 @@ export function Nav({
   user: { name: string; username?: string };
   onLogout: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const popRef = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Закрываем dropdown по клику снаружи / Esc / смене страницы
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node | null;
+      if (popRef.current?.contains(target as Node)) return;
+      if (btnRef.current?.contains(target as Node)) return;
+      setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const current = items.find((it) => it.id === page) ?? items[0];
+
   return (
     <>
       {/* === Топ-бар: мобильный.
            sticky-top-safe + safe-top — чтобы остаться видимым при скролле
-           и не уехать под status bar iOS (notch / dynamic island). === */}
-      <nav className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface-alt/95 backdrop-blur-sm px-3 pb-2 safe-top gap-2 animate-fade-in">
-        <Brand size={22} textClass="text-[14px] font-semibold" />
-        <div className="flex gap-1">
-          {items.map(({ id, label, Icon }) => {
-            const active = page === id;
-            return (
-              <button
-                key={id}
-                onClick={() => setPage(id)}
+           и не уехать под status bar iOS (notch / dynamic island).
+           Селектор страницы — пилюля с дропдауном, чтобы влезали все вкладки. === */}
+      <nav className="lg:hidden sticky top-0 z-40 border-b border-line bg-surface-alt/95 backdrop-blur-sm safe-top animate-fade-in">
+        <div className="flex items-center justify-between gap-2 px-3 pt-1 pb-2">
+          <Brand size={22} textClass="text-[14px] font-semibold" />
+
+          {/* Селектор текущей вкладки */}
+          <div className="relative flex-1 max-w-[240px]">
+            <button
+              ref={btnRef}
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className={clsx(
+                "w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border text-[13px] transition-all duration-150",
+                menuOpen
+                  ? "bg-brand-tint border-brand/30 text-brand-dark dark:text-white"
+                  : "bg-surface border-line text-ink hover:bg-surface-hover",
+              )}
+            >
+              <span className="flex items-center gap-1.5 min-w-0">
+                <current.Icon size={14} className="shrink-0" />
+                <span className="font-medium truncate">{current.label}</span>
+              </span>
+              <ChevronDown
+                size={14}
                 className={clsx(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150",
-                  active
-                    ? "bg-brand-tint text-brand-dark font-medium dark:text-white"
-                    : "text-ink-muted hover:bg-surface hover:text-ink",
+                  "shrink-0 text-ink-soft transition-transform duration-200",
+                  menuOpen && "rotate-180",
                 )}
+              />
+            </button>
+
+            {menuOpen && (
+              <div
+                ref={popRef}
+                role="menu"
+                className="absolute left-0 right-0 mt-1.5 z-50 rounded-lg border border-line bg-surface-alt shadow-lg overflow-hidden animate-fade-in"
               >
-                <Icon size={14} className="shrink-0" />
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button
-            onClick={onLogout}
-            className="text-ink-muted hover:text-brand-dark dark:hover:text-white p-1.5 rounded-md hover:bg-brand-tint transition-colors duration-150 shrink-0"
-            aria-label="Выйти"
-            title="Выйти"
-          >
-            <LogOut size={14} />
-          </button>
+                <ul className="py-1">
+                  {items.map(({ id, label, Icon }) => {
+                    const active = page === id;
+                    return (
+                      <li key={id}>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setPage(id);
+                            setMenuOpen(false);
+                          }}
+                          className={clsx(
+                            "w-full flex items-center gap-2 px-3 py-2 text-[13px] text-left transition-colors duration-150",
+                            active
+                              ? "bg-brand-tint text-brand-dark font-medium dark:text-white"
+                              : "text-ink hover:bg-surface-hover",
+                          )}
+                        >
+                          <Icon
+                            size={14}
+                            className={clsx(
+                              "shrink-0",
+                              active ? "text-brand dark:text-white" : "text-ink-soft",
+                            )}
+                          />
+                          <span className="flex-1">{label}</span>
+                          {active && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand dark:bg-white" />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="border-t border-line px-3 py-2 flex items-center justify-between text-[12px]">
+                  <span className="text-ink-muted truncate min-w-0">
+                    {user.name}
+                    {user.username ? <span className="text-ink-subtle"> · @{user.username}</span> : null}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <ThemeToggle />
+            <button
+              onClick={onLogout}
+              className="text-ink-muted hover:text-brand-dark dark:hover:text-white p-1.5 rounded-md hover:bg-brand-tint transition-colors duration-150"
+              aria-label="Выйти"
+              title="Выйти"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </nav>
 
