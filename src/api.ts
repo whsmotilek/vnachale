@@ -93,10 +93,22 @@ export interface AnalyticsResponse {
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
 }
 
+export interface ProductBreakdown {
+  name: string;
+  orders: number;
+  units: number;
+  revenue: number;
+  colors: Array<[string, number]>;
+  sizes: Array<[string, number]>;
+  cities?: Array<[string, number]>;
+}
+
 export interface SiteAnalyticsResponse {
   period: string;
   period_from: string;
   period_to: string;
+  product_filter: string | null;
+  available_products: string[];
   // KPI
   visits: number;
   users: number;
@@ -104,28 +116,37 @@ export interface SiteAnalyticsResponse {
   bounce_rate: number;             // %
   avg_visit_duration_sec: number;
   page_depth: number;
-  // Конверсии
+  // Конверсии (по целям Метрики)
   purchases: number;
   add_to_carts: number;
   payment_returns: number;
   conv_to_purchase_pct: number;
   conv_to_cart_pct: number;
   cart_to_purchase_pct: number;
-  // E-commerce агрегаты
+  // E-commerce агрегаты Метрики (НЕ показываем — может быть с накруткой за счёт отмен)
   ecom_purchases: number;
   ecom_revenue: number;
+  // Реальная выручка (из «Заказы» Sheets — наш источник правды)
+  real_revenue: number;
+  real_orders: number;
+  real_aov: number;
+  real_conversion_pct: number;
   // Разрезы
   daily: Array<{ date: string; visits: number; users: number }>;
+  daily_real: Array<{ date: string; revenue: number; orders: number }>;
   sources: Array<[string, number]>;
   devices: Array<[string, number]>;
   top_pages: Array<[string, number]>;
   top_cities: Array<[string, number]>;
+  products: ProductBreakdown[];
 }
 
 export interface OzonAnalyticsResponse {
   period: string;
   period_from: string | null;
   period_to: string | null;
+  product_filter: string | null;
+  available_products: string[];
   lifetime_revenue: number;
   lifetime_postings: number;
   total_revenue: number;
@@ -145,6 +166,7 @@ export interface OzonAnalyticsResponse {
   top_products: Array<[string, number]>;
   top_skus: Array<[string, number]>;
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
+  products: ProductBreakdown[];
 }
 
 // === методы ===
@@ -184,11 +206,13 @@ export const api = {
     period?: string;
     from?: string;
     to?: string;
+    product?: string;
   }): Promise<SiteAnalyticsResponse> {
     const qs = new URLSearchParams();
     if (opts?.period) qs.set("period", opts.period);
     if (opts?.from) qs.set("period_from", opts.from);
     if (opts?.to) qs.set("period_to", opts.to);
+    if (opts?.product) qs.set("product", opts.product);
     const tail = qs.toString();
     return request(`/site/analytics${tail ? "?" + tail : ""}`);
   },
@@ -196,11 +220,13 @@ export const api = {
     period?: string;
     from?: string;
     to?: string;
+    product?: string;
   }): Promise<OzonAnalyticsResponse> {
     const qs = new URLSearchParams();
     if (opts?.period) qs.set("period", opts.period);
     if (opts?.from) qs.set("period_from", opts.from);
     if (opts?.to) qs.set("period_to", opts.to);
+    if (opts?.product) qs.set("product", opts.product);
     const tail = qs.toString();
     return request(`/ozon/analytics${tail ? "?" + tail : ""}`);
   },
