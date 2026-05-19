@@ -37,10 +37,7 @@ export function Login({
         </div>
 
         <div className="card p-6 backdrop-blur-sm bg-surface/95">
-          <h1 className="text-[15px] font-semibold tracking-tightish">Вход для владельцев</h1>
-          <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
-            Доступ только для администраторов бренда.
-          </p>
+          <h1 className="text-[15px] font-semibold tracking-tightish">Вход</h1>
 
           {/* Tabs */}
           <div className="mt-5 flex gap-1 p-0.5 bg-surface-alt border border-line rounded-md text-[12px]">
