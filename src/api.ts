@@ -215,6 +215,30 @@ export const api = {
   async stock(): Promise<StockRow[]> {
     return request("/stock");
   },
+  async downloadStockCsv(): Promise<void> {
+    // Качаем CSV blob с auth-заголовком и триггерим скачивание.
+    if (!env.apiBaseUrl) throw new ApiError(0, "API недоступен");
+    const token = getToken();
+    const res = await fetch(`${env.apiBaseUrl}/stock/export.csv`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      throw new ApiError(res.status, await res.text().catch(() => "Не удалось скачать CSV"));
+    }
+    const blob = await res.blob();
+    // Имя файла берём из Content-Disposition, иначе дефолт
+    const cd = res.headers.get("Content-Disposition") || "";
+    const m = cd.match(/filename="([^"]+)"/);
+    const filename = m ? m[1] : "vnachale-stock.csv";
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
   async adjustStock(
     sku: string,
     delta: number,

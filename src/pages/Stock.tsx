@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
-import { AlertTriangle, Minus, Plus, Search, X } from "lucide-react";
+import { AlertTriangle, Download, Minus, Plus, Search, X } from "lucide-react";
 import { api, ApiError, type StockRow } from "../api";
 import { hasApi } from "../env";
 
@@ -89,17 +89,49 @@ export function Stock() {
     return { totalSku, totalUnits, totalReserved, lowCount };
   }, [rows]);
 
+  const [exporting, setExporting] = useState(false);
+  const [exportErr, setExportErr] = useState<string | null>(null);
+
+  async function handleExportCsv() {
+    setExporting(true);
+    setExportErr(null);
+    try {
+      await api.downloadStockCsv();
+    } catch (e) {
+      setExportErr(e instanceof ApiError ? e.message : "Не удалось скачать CSV");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
       <header className="mb-5 flex items-baseline justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Склад</h1>
-        {kpi && (
-          <div className="text-[13px] text-ink-muted tabular-nums">
-            {kpi.totalSku} SKU · {formatNum(kpi.totalUnits)} ед.
-            {kpi.totalReserved > 0 && ` · резерв ${kpi.totalReserved}`}
-          </div>
-        )}
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Склад</h1>
+          {kpi && (
+            <div className="mt-1 text-[13px] text-ink-muted tabular-nums">
+              {kpi.totalSku} SKU · {formatNum(kpi.totalUnits)} ед.
+              {kpi.totalReserved > 0 && ` · резерв ${kpi.totalReserved}`}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={exporting || !rows}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-md border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors disabled:opacity-50"
+          title="Скачать CSV для импорта остатков в Tilda"
+        >
+          <Download size={14} />
+          {exporting ? "Экспорт…" : "Экспорт CSV для Tilda"}
+        </button>
       </header>
+      {exportErr && (
+        <div className="mb-3 text-[12px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded p-2">
+          {exportErr}
+        </div>
+      )}
 
       {/* KPI карточки */}
       {kpi && (
