@@ -86,7 +86,8 @@ export function OrdersTable({
             <col className="w-8" />
             <col className="w-[120px]" />
             <col className="w-[110px]" />
-            <col className="w-[150px]" />
+            {/* Статус: 180px чтобы помещалось «Направлено на склад» + чевронка */}
+            <col className="w-[180px]" />
             <col className="w-[200px]" />
             <col />
             <col className="w-[110px]" />
