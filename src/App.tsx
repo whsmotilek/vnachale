@@ -153,7 +153,7 @@ export default function App() {
       />
       <main className="flex-1 min-w-0">
         {page === "orders" ? (
-          <Orders readOnly={user.role !== "owner"} />
+          <Orders />
         ) : page === "stock" && (user.role === "owner" || user.role === "fulfillment") ? (
           <Stock />
         ) : page === "ozon" && user.role === "owner" ? (
@@ -163,7 +163,7 @@ export default function App() {
         ) : page === "analytics" && user.role === "owner" ? (
           <Analytics />
         ) : (
-          <Orders readOnly={user.role !== "owner"} />
+          <Orders />
         )}
       </main>
     </div>
