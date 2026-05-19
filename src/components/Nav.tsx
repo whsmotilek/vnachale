@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles,
+  Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles,
 } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders" | "analytics" | "site" | "ozon";
+type Page = "orders" | "stock" | "analytics" | "site" | "ozon";
 type Role = "owner" | "manager" | "fulfillment" | "guest";
 
 interface NavItem {
@@ -38,6 +38,7 @@ const SECTIONS: NavSection[] = [
     label: "Сайт",
     items: [
       { id: "orders", label: "Заказы", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"] },
+      { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"] },
       { id: "analytics", label: "Аналитика", Icon: LineChart, roles: ["owner"] },
       { id: "site", label: "Трафик", Icon: Globe, roles: ["owner"] },
     ],

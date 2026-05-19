@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Nav, type Page } from "./components/Nav";
 import { Login } from "./pages/Login";
 import { Orders } from "./pages/Orders";
+import { Stock } from "./pages/Stock";
 import { Analytics } from "./pages/Analytics";
 import { Site } from "./pages/Site";
 import { Ozon } from "./pages/Ozon";
@@ -40,7 +41,7 @@ function decodeJwtPayload(token: string): SessionUser | null {
 // Какие страницы разрешены для каждой роли
 function isPageAllowed(page: Page, role: Role): boolean {
   if (role === "owner") return true;
-  if (role === "fulfillment") return page === "orders";
+  if (role === "fulfillment") return page === "orders" || page === "stock";
   if (role === "manager") return page === "orders";
   return false;
 }
@@ -51,7 +52,7 @@ export default function App() {
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [page, setPage] = useState<Page>(() => {
     const hash = window.location.hash.replace(/^#\/?/, "") as Page;
-    if (hash === "analytics" || hash === "ozon" || hash === "site") return hash;
+    if (hash === "analytics" || hash === "ozon" || hash === "site" || hash === "stock") return hash;
     return "orders";
   });
 
@@ -153,6 +154,8 @@ export default function App() {
       <main className="flex-1 min-w-0">
         {page === "orders" ? (
           <Orders readOnly={user.role !== "owner"} />
+        ) : page === "stock" && (user.role === "owner" || user.role === "fulfillment") ? (
+          <Stock />
         ) : page === "ozon" && user.role === "owner" ? (
           <Ozon />
         ) : page === "site" && user.role === "owner" ? (
@@ -160,7 +163,7 @@ export default function App() {
         ) : page === "analytics" && user.role === "owner" ? (
           <Analytics />
         ) : (
-          <Orders readOnly />
+          <Orders readOnly={user.role !== "owner"} />
         )}
       </main>
     </div>

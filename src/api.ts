@@ -93,6 +93,31 @@ export interface AnalyticsResponse {
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
 }
 
+export interface StockRow {
+  sku: string;
+  name: string;
+  size: string;
+  barcode: string;
+  stock: number;
+  reserved: number;
+  available: number;
+  min_stock: number;
+  snapshot_date: string;
+  display_model: string;
+  display_color: string;
+  display_size: string;
+}
+
+export interface StockAdjustResult {
+  status: "ok";
+  sku: string;
+  old_stock: number;
+  new_stock: number;
+  delta: number;
+  reserved: number;
+  available: number;
+}
+
 export interface ProductBreakdown {
   name: string;
   orders: number;
@@ -185,6 +210,24 @@ export const api = {
     return request("/auth/password", {
       method: "POST",
       body: JSON.stringify({ username, password }),
+    });
+  },
+  async stock(): Promise<StockRow[]> {
+    return request("/stock");
+  },
+  async adjustStock(
+    sku: string,
+    delta: number,
+    opts?: { reason?: string; expectedStock?: number },
+  ): Promise<StockAdjustResult> {
+    return request("/stock/adjust", {
+      method: "POST",
+      body: JSON.stringify({
+        sku,
+        delta,
+        reason: opts?.reason,
+        expected_stock: opts?.expectedStock,
+      }),
     });
   },
   async orders(): Promise<Order[]> {
