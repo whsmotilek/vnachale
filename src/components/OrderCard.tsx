@@ -2,7 +2,6 @@ import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import type { Order } from "../api";
 import { StatusSelect } from "./StatusSelect";
-import { StatusBadge } from "./StatusBadge";
 import { OrderDetails } from "./OrderDetails";
 
 function formatRub(value: string | number): string {
@@ -55,15 +54,11 @@ export function OrderCard({
             </div>
           </div>
           <div onClick={(e) => e.stopPropagation()}>
-            {readOnly ? (
-              <StatusBadge status={order.status} />
-            ) : (
-              <StatusSelect
-                orderId={order.order_id}
-                current={order.status}
-                onChanged={(s) => onUpdate?.({ status: s })}
-              />
-            )}
+            <StatusSelect
+              orderId={order.order_id}
+              current={order.status}
+              onChanged={(s) => onUpdate?.({ status: s })}
+            />
           </div>
         </header>
 

@@ -3,7 +3,6 @@ import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import type { Order } from "../api";
 import { StatusSelect } from "./StatusSelect";
-import { StatusBadge } from "./StatusBadge";
 import { OrderCard } from "./OrderCard";
 import { OrderDetails } from "./OrderDetails";
 
@@ -131,15 +130,11 @@ export function OrdersTable({
                     </Td>
                     <Td className="whitespace-nowrap">{formatDate(o.created_at)}</Td>
                     <Td onClick={(e) => e.stopPropagation()}>
-                      {readOnly ? (
-                        <StatusBadge status={o.status} />
-                      ) : (
-                        <StatusSelect
-                          orderId={o.order_id}
-                          current={o.status}
-                          onChanged={(s) => onUpdate(o.order_id, { status: s })}
-                        />
-                      )}
+                      <StatusSelect
+                        orderId={o.order_id}
+                        current={o.status}
+                        onChanged={(s) => onUpdate(o.order_id, { status: s })}
+                      />
                     </Td>
                     <Td>
                       <div className="truncate text-ink">{o.customer_name || "—"}</div>
