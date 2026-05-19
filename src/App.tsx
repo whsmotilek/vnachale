@@ -6,6 +6,7 @@ import { Stock } from "./pages/Stock";
 import { Analytics } from "./pages/Analytics";
 import { Site } from "./pages/Site";
 import { Ozon } from "./pages/Ozon";
+import { OzonTraffic } from "./pages/OzonTraffic";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
 import { getTelegramWebApp } from "./telegram";
 
@@ -46,13 +47,17 @@ function isPageAllowed(page: Page, role: Role): boolean {
   return false;
 }
 
+const VALID_HASHES: ReadonlyArray<Page> = [
+  "orders", "stock", "analytics", "site", "ozon", "ozon_traffic",
+];
+
 export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [page, setPage] = useState<Page>(() => {
     const hash = window.location.hash.replace(/^#\/?/, "") as Page;
-    if (hash === "analytics" || hash === "ozon" || hash === "site" || hash === "stock") return hash;
+    if (VALID_HASHES.includes(hash)) return hash;
     return "orders";
   });
 
@@ -158,6 +163,8 @@ export default function App() {
           <Stock />
         ) : page === "ozon" && user.role === "owner" ? (
           <Ozon />
+        ) : page === "ozon_traffic" && user.role === "owner" ? (
+          <OzonTraffic />
         ) : page === "site" && user.role === "owner" ? (
           <Site />
         ) : page === "analytics" && user.role === "owner" ? (

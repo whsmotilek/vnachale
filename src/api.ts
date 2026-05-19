@@ -166,6 +166,52 @@ export interface SiteAnalyticsResponse {
   products: ProductBreakdown[];
 }
 
+export interface OzonCard {
+  sku: string;
+  model: string;
+  color: string;
+  size: string;
+  units_total: number;
+  units_delivered: number;
+  units_delivering: number;
+  units_cancelled: number;
+  cancel_rate: number;
+  revenue_realized: number;
+  revenue_cancelled: number;
+  payout: number;
+  commission: number;
+  velocity_per_day: number;
+  days_since_last_sale: number | null;
+  first_sale: string | null;
+  last_sale: string | null;
+  top_city: string;
+  distinct_cities: number;
+  postings_count: number;
+  stock: number;
+  available: number;
+  days_to_stockout: number | null;
+  tags: string[];
+}
+
+export interface OzonCardsResponse {
+  period: string;
+  period_from: string | null;
+  period_to: string | null;
+  period_days: number;
+  total_skus: number;
+  active_skus: number;
+  silent_skus: number;
+  high_cancel_skus: number;
+  stock_risk_skus: number;
+  total_revenue: number;
+  total_units: number;
+  cards: OzonCard[];
+  top_movers: OzonCard[];
+  slow_movers: OzonCard[];
+  high_cancel: OzonCard[];
+  at_risk: OzonCard[];
+}
+
 export interface OzonAnalyticsResponse {
   period: string;
   period_from: string | null;
@@ -282,6 +328,18 @@ export const api = {
     if (opts?.product) qs.set("product", opts.product);
     const tail = qs.toString();
     return request(`/site/analytics${tail ? "?" + tail : ""}`);
+  },
+  async ozonCards(opts?: {
+    period?: string;
+    from?: string;
+    to?: string;
+  }): Promise<OzonCardsResponse> {
+    const qs = new URLSearchParams();
+    if (opts?.period) qs.set("period", opts.period);
+    if (opts?.from) qs.set("period_from", opts.from);
+    if (opts?.to) qs.set("period_to", opts.to);
+    const tail = qs.toString();
+    return request(`/ozon/cards${tail ? "?" + tail : ""}`);
   },
   async ozonAnalytics(opts?: {
     period?: string;

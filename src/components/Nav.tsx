@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles,
+  Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles, TrendingUp,
 } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders" | "stock" | "analytics" | "site" | "ozon";
+type Page = "orders" | "stock" | "analytics" | "site" | "ozon" | "ozon_traffic";
 type Role = "owner" | "manager" | "fulfillment" | "guest";
 
 interface NavItem {
@@ -48,6 +48,7 @@ const SECTIONS: NavSection[] = [
     label: "Селект",
     items: [
       { id: "ozon", label: "Аналитика", Icon: Sparkles, roles: ["owner"] },
+      { id: "ozon_traffic", label: "Трафик", Icon: TrendingUp, roles: ["owner"] },
     ],
   },
 ];
