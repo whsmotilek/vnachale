@@ -28,7 +28,7 @@ const DELIVERY_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   new: "Новые",
   confirmed: "Подтвержденные",
-  in_pack: "В сборке",
+  in_pack: "Направлено на склад",
   shipped: "Отгруженные",
   delivered: "Доставленные",
   refunded: "Возвраты",

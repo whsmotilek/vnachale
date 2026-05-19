@@ -13,7 +13,7 @@ const styles: Record<string, string> = {
 const labels: Record<string, string> = {
   new: "Новый",
   confirmed: "Подтвержден",
-  in_pack: "В сборке",
+  in_pack: "Направлено на склад",
   shipped: "Отгружен",
   delivered: "Доставлен",
   refunded: "Возврат",

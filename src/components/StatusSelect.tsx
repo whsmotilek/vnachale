@@ -16,7 +16,7 @@ const OPTIONS: Array<{ value: string; label: string; cls: string }> = [
   },
   {
     value: "in_pack",
-    label: "Направлено ФФ",
+    label: "Направлено на склад",
     cls: "bg-violet-50 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-200 dark:border-violet-800",
   },
   {
