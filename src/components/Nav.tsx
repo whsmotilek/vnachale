@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, LayoutGrid, LineChart, LogOut, ShoppingBag } from "lucide-react";
+import { ChevronDown, Globe, LayoutGrid, LineChart, LogOut, ShoppingBag } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders" | "analytics" | "ozon";
+type Page = "orders" | "analytics" | "site" | "ozon";
 
 const items: Array<{ id: Page; label: string; Icon: typeof LayoutGrid }> = [
   { id: "orders", label: "Заказы", Icon: LayoutGrid },
   { id: "analytics", label: "Аналитика", Icon: LineChart },
+  { id: "site", label: "Сайт", Icon: Globe },
   { id: "ozon", label: "Ozon", Icon: ShoppingBag },
 ];
 

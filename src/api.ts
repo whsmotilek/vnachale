@@ -93,6 +93,35 @@ export interface AnalyticsResponse {
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
 }
 
+export interface SiteAnalyticsResponse {
+  period: string;
+  period_from: string;
+  period_to: string;
+  // KPI
+  visits: number;
+  users: number;
+  pageviews: number;
+  bounce_rate: number;             // %
+  avg_visit_duration_sec: number;
+  page_depth: number;
+  // Конверсии
+  purchases: number;
+  add_to_carts: number;
+  payment_returns: number;
+  conv_to_purchase_pct: number;
+  conv_to_cart_pct: number;
+  cart_to_purchase_pct: number;
+  // E-commerce агрегаты
+  ecom_purchases: number;
+  ecom_revenue: number;
+  // Разрезы
+  daily: Array<{ date: string; visits: number; users: number }>;
+  sources: Array<[string, number]>;
+  devices: Array<[string, number]>;
+  top_pages: Array<[string, number]>;
+  top_cities: Array<[string, number]>;
+}
+
 export interface OzonAnalyticsResponse {
   period: string;
   period_from: string | null;
@@ -150,6 +179,18 @@ export const api = {
     if (opts?.to) qs.set("period_to", opts.to);
     const tail = qs.toString();
     return request(`/analytics${tail ? "?" + tail : ""}`);
+  },
+  async siteAnalytics(opts?: {
+    period?: string;
+    from?: string;
+    to?: string;
+  }): Promise<SiteAnalyticsResponse> {
+    const qs = new URLSearchParams();
+    if (opts?.period) qs.set("period", opts.period);
+    if (opts?.from) qs.set("period_from", opts.from);
+    if (opts?.to) qs.set("period_to", opts.to);
+    const tail = qs.toString();
+    return request(`/site/analytics${tail ? "?" + tail : ""}`);
   },
   async ozonAnalytics(opts?: {
     period?: string;

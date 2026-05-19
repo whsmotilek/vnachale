@@ -3,6 +3,7 @@ import { Nav, type Page } from "./components/Nav";
 import { Login } from "./pages/Login";
 import { Orders } from "./pages/Orders";
 import { Analytics } from "./pages/Analytics";
+import { Site } from "./pages/Site";
 import { Ozon } from "./pages/Ozon";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
 import { getTelegramWebApp } from "./telegram";
@@ -32,7 +33,7 @@ export default function App() {
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [page, setPage] = useState<Page>(() => {
     const hash = window.location.hash.replace(/^#\/?/, "") as Page;
-    if (hash === "analytics" || hash === "ozon") return hash;
+    if (hash === "analytics" || hash === "ozon" || hash === "site") return hash;
     return "orders";
   });
 
@@ -134,7 +135,15 @@ export default function App() {
         }}
       />
       <main className="flex-1 min-w-0">
-        {page === "orders" ? <Orders /> : page === "ozon" ? <Ozon /> : <Analytics />}
+        {page === "orders" ? (
+          <Orders />
+        ) : page === "ozon" ? (
+          <Ozon />
+        ) : page === "site" ? (
+          <Site />
+        ) : (
+          <Analytics />
+        )}
       </main>
     </div>
   );
