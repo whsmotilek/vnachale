@@ -2,6 +2,7 @@ import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import type { Order } from "../api";
 import { StatusSelect } from "./StatusSelect";
+import { StatusBadge } from "./StatusBadge";
 import { OrderDetails } from "./OrderDetails";
 
 function formatRub(value: string | number): string {
@@ -29,11 +30,13 @@ export function OrderCard({
   expanded,
   onToggle,
   onUpdate,
+  readOnly = false,
 }: {
   order: Order;
   expanded: boolean;
   onToggle: () => void;
   onUpdate?: (patch: Partial<Order>) => void;
+  readOnly?: boolean;
 }) {
   return (
     <article
@@ -52,11 +55,15 @@ export function OrderCard({
             </div>
           </div>
           <div onClick={(e) => e.stopPropagation()}>
-            <StatusSelect
-              orderId={order.order_id}
-              current={order.status}
-              onChanged={(s) => onUpdate?.({ status: s })}
-            />
+            {readOnly ? (
+              <StatusBadge status={order.status} />
+            ) : (
+              <StatusSelect
+                orderId={order.order_id}
+                current={order.status}
+                onChanged={(s) => onUpdate?.({ status: s })}
+              />
+            )}
           </div>
         </header>
 
@@ -93,7 +100,7 @@ export function OrderCard({
         </div>
       </div>
 
-      {expanded && <OrderDetails order={order} onUpdate={onUpdate} />}
+      {expanded && <OrderDetails order={order} onUpdate={onUpdate} readOnly={readOnly} />}
     </article>
   );
 }

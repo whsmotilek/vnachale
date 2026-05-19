@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import type { Order } from "../api";
 import { StatusSelect } from "./StatusSelect";
+import { StatusBadge } from "./StatusBadge";
 import { OrderCard } from "./OrderCard";
 import { OrderDetails } from "./OrderDetails";
 
@@ -37,9 +38,11 @@ const COLUMNS = 8;
 export function OrdersTable({
   orders,
   onUpdate,
+  readOnly = false,
 }: {
   orders: Order[];
   onUpdate: (orderId: string, patch: Partial<Order>) => void;
+  readOnly?: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -72,6 +75,7 @@ export function OrdersTable({
             expanded={expandedId === o.order_id}
             onToggle={() => toggleExpand(o.order_id)}
             onUpdate={(patch) => onUpdate(o.order_id, patch)}
+            readOnly={readOnly}
           />
         ))}
       </div>
@@ -127,11 +131,15 @@ export function OrdersTable({
                     </Td>
                     <Td className="whitespace-nowrap">{formatDate(o.created_at)}</Td>
                     <Td onClick={(e) => e.stopPropagation()}>
-                      <StatusSelect
-                        orderId={o.order_id}
-                        current={o.status}
-                        onChanged={(s) => onUpdate(o.order_id, { status: s })}
-                      />
+                      {readOnly ? (
+                        <StatusBadge status={o.status} />
+                      ) : (
+                        <StatusSelect
+                          orderId={o.order_id}
+                          current={o.status}
+                          onChanged={(s) => onUpdate(o.order_id, { status: s })}
+                        />
+                      )}
                     </Td>
                     <Td>
                       <div className="truncate text-ink">{o.customer_name || "—"}</div>
@@ -164,6 +172,7 @@ export function OrdersTable({
                         <OrderDetails
                           order={o}
                           onUpdate={(patch) => onUpdate(o.order_id, patch)}
+                          readOnly={readOnly}
                         />
                       </td>
                     </tr>

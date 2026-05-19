@@ -43,9 +43,11 @@ const DELIVERY_LABELS: Record<string, string> = {
 export function OrderDetails({
   order,
   onUpdate,
+  readOnly = false,
 }: {
   order: Order;
   onUpdate?: (patch: Partial<Order>) => void;
+  readOnly?: boolean;
 }) {
   const { copiedKey, copy } = useCopy();
 
@@ -180,13 +182,17 @@ export function OrderDetails({
       )}
 
       <Row label="Трек-номер" full>
-        <TrackEditor
-          orderId={order.order_id}
-          value={order.track_number}
-          copy={copy}
-          copiedKey={copiedKey}
-          onUpdate={(track) => onUpdate?.({ track_number: track })}
-        />
+        {readOnly ? (
+          <CopyValue fieldKey="track" text={order.track_number || ""} mono />
+        ) : (
+          <TrackEditor
+            orderId={order.order_id}
+            value={order.track_number}
+            copy={copy}
+            copiedKey={copiedKey}
+            onUpdate={(track) => onUpdate?.({ track_number: track })}
+          />
+        )}
       </Row>
       {order.shipped_at && (
         <Row label="Отгружен">

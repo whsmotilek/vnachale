@@ -37,7 +37,7 @@ function matchesQuery(o: Order, q: string): boolean {
   return haystack.includes(query);
 }
 
-export function Orders() {
+export function Orders({ readOnly = false }: { readOnly?: boolean }) {
   // Источник истины — здесь, наверху. OrdersTable только рендерит и зовёт onUpdate.
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +126,7 @@ export function Orders() {
           </div>
         </div>
       ) : (
-        <OrdersTable orders={filtered} onUpdate={updateOrder} />
+        <OrdersTable orders={filtered} onUpdate={updateOrder} readOnly={readOnly} />
       )}
     </div>
   );

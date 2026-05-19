@@ -7,11 +7,14 @@ import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
 type Page = "orders" | "analytics" | "site" | "ozon";
+type Role = "owner" | "manager" | "fulfillment" | "guest";
 
 interface NavItem {
   id: Page;
   label: string;
   Icon: typeof LayoutGrid;
+  /** Какие роли видят пункт. Если поле опущено — видит owner только. */
+  roles?: Role[];
 }
 
 interface NavSection {
@@ -34,22 +37,32 @@ const SECTIONS: NavSection[] = [
     id: "site_group",
     label: "Сайт",
     items: [
-      { id: "orders", label: "Заказы", Icon: LayoutGrid },
-      { id: "analytics", label: "Аналитика", Icon: LineChart },
-      { id: "site", label: "Трафик", Icon: Globe },
+      { id: "orders", label: "Заказы", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"] },
+      { id: "analytics", label: "Аналитика", Icon: LineChart, roles: ["owner"] },
+      { id: "site", label: "Трафик", Icon: Globe, roles: ["owner"] },
     ],
   },
   {
     id: "select_group",
     label: "Селект",
     items: [
-      { id: "ozon", label: "Аналитика", Icon: Sparkles },
+      { id: "ozon", label: "Аналитика", Icon: Sparkles, roles: ["owner"] },
     ],
   },
 ];
 
-function findItem(id: Page): { item: NavItem; section: NavSection } | null {
+/** Фильтруем секции по роли, выкидывая пустые секции целиком. */
+function visibleSections(role: Role): NavSection[] {
+  const out: NavSection[] = [];
   for (const s of SECTIONS) {
+    const items = s.items.filter((it) => !it.roles || it.roles.includes(role));
+    if (items.length > 0) out.push({ ...s, items });
+  }
+  return out;
+}
+
+function findItem(id: Page, sections: NavSection[]): { item: NavItem; section: NavSection } | null {
+  for (const s of sections) {
     for (const it of s.items) {
       if (it.id === id) return { item: it, section: s };
     }
@@ -65,12 +78,13 @@ export function Nav({
 }: {
   page: Page;
   setPage: (p: Page) => void;
-  user: { name: string; username?: string };
+  user: { name: string; username?: string; role: Role };
   onLogout: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
+  const sections = visibleSections(user.role);
 
   // Закрытие dropdown по клику снаружи / Esc
   useEffect(() => {
@@ -94,7 +108,7 @@ export function Nav({
     };
   }, [menuOpen]);
 
-  const current = findItem(page);
+  const current = findItem(page, sections);
 
   return (
     <>
@@ -147,7 +161,7 @@ export function Nav({
                 className="absolute left-0 right-0 mt-1.5 z-50 rounded-lg border border-line bg-surface-alt shadow-lg overflow-hidden animate-fade-in"
               >
                 <ul className="py-1">
-                  {SECTIONS.map((sec) => (
+                  {sections.map((sec) => (
                     <li key={sec.id}>
                       <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-ink-subtle font-medium">
                         {sec.label}
@@ -221,7 +235,7 @@ export function Nav({
         </div>
 
         <div className="px-2 py-1 flex flex-col gap-3">
-          {SECTIONS.map((sec) => (
+          {sections.map((sec) => (
             <div key={sec.id}>
               <div className="px-2 mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wider text-ink-subtle font-medium">
                 <ChevronRight size={10} className="text-ink-soft" />

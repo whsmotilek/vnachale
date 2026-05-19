@@ -8,10 +8,13 @@ import { Ozon } from "./pages/Ozon";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
 import { getTelegramWebApp } from "./telegram";
 
+export type Role = "owner" | "manager" | "fulfillment" | "guest";
+
 interface SessionUser {
   id: number;
   name: string;
   username?: string;
+  role: Role;
 }
 
 function decodeJwtPayload(token: string): SessionUser | null {
@@ -21,10 +24,25 @@ function decodeJwtPayload(token: string): SessionUser | null {
     const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
     if (json.exp && json.exp < Math.floor(Date.now() / 1000)) return null;
     if (typeof json.id !== "number") return null;
-    return { id: json.id, name: json.name ?? `id${json.id}`, username: json.username };
+    const role = (typeof json.role === "string" ? json.role : "owner").toLowerCase() as Role;
+    return {
+      id: json.id,
+      name: json.name ?? `id${json.id}`,
+      username: json.username,
+      // Backward-compat: старые JWT без role — считаем owner (раньше доступ был только у них)
+      role: (role === "owner" || role === "manager" || role === "fulfillment") ? role : "owner",
+    };
   } catch {
     return null;
   }
+}
+
+// Какие страницы разрешены для каждой роли
+function isPageAllowed(page: Page, role: Role): boolean {
+  if (role === "owner") return true;
+  if (role === "fulfillment") return page === "orders";
+  if (role === "manager") return page === "orders";
+  return false;
 }
 
 export default function App() {
@@ -37,22 +55,15 @@ export default function App() {
     return "orders";
   });
 
-  // Bootstrap: проверяем варианты в порядке приоритета:
-  //   1. JWT в URL #fragment — пришли из redirect-flow Telegram Login Widget
-  //   2. Сохраненный JWT в localStorage
-  //   3. Внутри Telegram (initData) — auto-auth через WebApp endpoint
-  //   4. Иначе — показываем Login Widget
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // 1. token в URL hash (redirect-flow)
       const hashMatch = window.location.hash.match(/[#&]token=([^&]+)/);
       if (hashMatch) {
         const token = decodeURIComponent(hashMatch[1]);
         const u = decodeJwtPayload(token);
         if (u) {
           setToken(token);
-          // чистим fragment чтобы JWT не светился в адресной строке
           history.replaceState(null, "", window.location.pathname + window.location.search);
           if (!cancelled) {
             setUser(u);
@@ -61,8 +72,6 @@ export default function App() {
           return;
         }
       }
-
-      // 2. сохраненный токен
       const existing = getToken();
       if (existing) {
         const u = decodeJwtPayload(existing);
@@ -75,7 +84,6 @@ export default function App() {
         }
         clearToken();
       }
-
       const tg = getTelegramWebApp();
       if (tg) {
         try {
@@ -98,6 +106,14 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Если роль не пускает на текущую страницу — перенаправляем на разрешённую
+  useEffect(() => {
+    if (!user) return;
+    if (!isPageAllowed(page, user.role)) {
+      setPage("orders");
+    }
+  }, [user, page]);
 
   useEffect(() => {
     window.location.hash = `/${page}`;
@@ -128,7 +144,7 @@ export default function App() {
       <Nav
         page={page}
         setPage={setPage}
-        user={{ name: user.name, username: user.username }}
+        user={{ name: user.name, username: user.username, role: user.role }}
         onLogout={() => {
           clearToken();
           setUser(null);
@@ -136,13 +152,15 @@ export default function App() {
       />
       <main className="flex-1 min-w-0">
         {page === "orders" ? (
-          <Orders />
-        ) : page === "ozon" ? (
+          <Orders readOnly={user.role !== "owner"} />
+        ) : page === "ozon" && user.role === "owner" ? (
           <Ozon />
-        ) : page === "site" ? (
+        ) : page === "site" && user.role === "owner" ? (
           <Site />
-        ) : (
+        ) : page === "analytics" && user.role === "owner" ? (
           <Analytics />
+        ) : (
+          <Orders readOnly />
         )}
       </main>
     </div>
