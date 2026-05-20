@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import {
   AlertTriangle, ArrowDownUp, ArrowDownRight, ArrowUpRight, Eye, Flame,
@@ -509,7 +510,10 @@ export function OzonTraffic() {
         </div>
       ) : null}
 
-      {selected && <DetailModal card={selected} onClose={() => setSelected(null)} />}
+      {selected && createPortal(
+        <DetailModal card={selected} onClose={() => setSelected(null)} />,
+        document.body,
+      )}
     </div>
   );
 }
@@ -788,7 +792,13 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Блокируем прокрутку фона пока модалка открыта (особенно важно на мобильных)
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
   }, [onClose]);
 
   const sold = card.units_delivered + card.units_delivering;
