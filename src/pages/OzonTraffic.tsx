@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import {
   AlertTriangle, ArrowDownUp, ArrowDownRight, ArrowUpRight, Eye, Flame,
-  PackageX, Search, ShieldAlert, Sparkles, Target,
+  Lightbulb, PackageX, Search, ShieldAlert, Sparkles, Target,
   TrendingDown, TrendingUp, X,
 } from "lucide-react";
-import { api, type OzonCard, type OzonCardsResponse } from "../api";
+import {
+  api, type ExecSummaryItem, type ExecSummaryKind,
+  type ModelCross, type OzonCard, type OzonCardsResponse,
+} from "../api";
 import { StatCard } from "../components/StatCard";
 import { StatCardsSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
@@ -196,6 +199,14 @@ export function OzonTraffic() {
         <StatCardsSkeleton />
       ) : data ? (
         <div className={clsx("transition-opacity", loading && "opacity-60")}>
+          {/* === Executive summary === */}
+          {data.executive_summary && data.executive_summary.length > 0 && (
+            <ExecutiveSummary items={data.executive_summary} onSkuClick={(sku) => {
+              const c = data.cards.find((c) => c.sku === sku);
+              if (c) setSelected(c);
+            }} />
+          )}
+
           {/* KPI */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
@@ -348,6 +359,11 @@ export function OzonTraffic() {
             </section>
           )}
 
+          {/* === Кросс-аналитика по моделям === */}
+          {data.models_cross && data.models_cross.length > 0 && (
+            <CrossAnalytics models={data.models_cross} hasPremium={data.has_premium_data} />
+          )}
+
           {/* Поиск + фильтры */}
           <section className="mt-8 mb-3">
             <div className="flex flex-col lg:flex-row gap-2">
@@ -497,6 +513,223 @@ export function OzonTraffic() {
     </div>
   );
 }
+
+function ExecutiveSummary({
+  items, onSkuClick,
+}: {
+  items: ExecSummaryItem[];
+  onSkuClick: (sku: string) => void;
+}) {
+  const styleByKind: Record<ExecSummaryKind, string> = {
+    win: "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-900/10",
+    urgent: "border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-900/10",
+    warning: "border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-900/10",
+    opportunity: "border-brand/30 bg-brand-tint/30 dark:border-brand/50 dark:bg-brand/10",
+    info: "border-line bg-surface-alt",
+  };
+  return (
+    <section className="mb-6 card p-5 border-2 border-brand/20 bg-gradient-to-br from-brand-tint/30 to-surface">
+      <header className="mb-3 flex items-baseline gap-2">
+        <Sparkles size={14} className="text-brand" />
+        <h2 className="text-[14px] font-semibold tracking-tightish">Что важно прямо сейчас</h2>
+        <span className="text-[11px] text-ink-subtle">авто-сводка по данным</span>
+      </header>
+      <ul className="flex flex-col gap-2">
+        {items.map((it, i) => (
+          <li key={i}>
+            <button
+              type="button"
+              onClick={() => it.sku && onSkuClick(it.sku)}
+              disabled={!it.sku}
+              className={clsx(
+                "w-full text-left flex items-start gap-2.5 p-2.5 rounded-md border text-[13px] leading-snug transition-colors",
+                styleByKind[it.kind],
+                it.sku && "hover:bg-surface-hover cursor-pointer",
+                !it.sku && "cursor-default",
+              )}
+            >
+              <span className="text-[15px] shrink-0 leading-none mt-0.5">{it.icon}</span>
+              <span className="flex-1 text-ink">{it.text}</span>
+              {it.sku && (
+                <span className="text-[10px] text-ink-soft font-mono shrink-0">
+                  открыть →
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+
+function CrossAnalytics({
+  models, hasPremium,
+}: {
+  models: ModelCross[];
+  hasPremium: boolean;
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  return (
+    <section className="mt-8">
+      <header className="mb-3 flex items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold tracking-tightish">Кросс-аналитика по моделям</h2>
+          <p className="text-[12px] text-ink-subtle mt-0.5">
+            Какие модели тянут, какие тормозят. Кликни строку чтобы увидеть распределение по цветам и размерам.
+          </p>
+        </div>
+      </header>
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px] min-w-[900px]">
+            <thead className="bg-surface-alt border-b border-line text-ink-muted">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-[10px] uppercase tracking-wider">Модель</th>
+                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">SKU</th>
+                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Продано</th>
+                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Выручка</th>
+                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Ср. чек</th>
+                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">% отмен</th>
+                {hasPremium && (
+                  <>
+                    <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Показы</th>
+                    <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Ср. позиция</th>
+                    <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Ср. конв.</th>
+                  </>
+                )}
+                <th className="px-3 py-2 text-left font-medium text-[10px] uppercase tracking-wider">Лидер</th>
+              </tr>
+            </thead>
+            <tbody>
+              {models.map((m) => {
+                const isOpen = expanded === m.name;
+                return (
+                  <React.Fragment key={m.name}>
+                    <tr
+                      onClick={() => setExpanded(isOpen ? null : m.name)}
+                      className={clsx(
+                        "border-t border-line cursor-pointer transition-colors",
+                        isOpen ? "bg-surface-hover" : "hover:bg-surface-hover",
+                      )}
+                    >
+                      <td className="px-3 py-2.5 align-middle">
+                        <div className="text-ink font-medium">{m.name}</div>
+                        <div className="text-[10px] text-ink-subtle">
+                          {m.sku_count} SKU
+                          {m.skus_silent > 0 && (
+                            <span className="text-amber-700 dark:text-amber-300"> · {m.skus_silent} silent</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.sku_count}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-medium">{m.units_sold}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{formatRub(m.revenue)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.avg_ticket > 0 ? formatRub(Math.round(m.avg_ticket)) : "—"}</td>
+                      <td className={clsx(
+                        "px-3 py-2.5 text-right tabular-nums",
+                        m.cancel_rate > 0.6 && "text-rose-700 dark:text-rose-300 font-medium",
+                      )}>
+                        {formatPct(m.cancel_rate)}
+                      </td>
+                      {hasPremium && (
+                        <>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
+                            {m.search_users > 0 ? formatNum(m.search_users) : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
+                            {m.avg_position !== null ? m.avg_position.toFixed(0) : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
+                            {m.avg_conversion_pct !== null ? `${m.avg_conversion_pct.toFixed(2)}%` : "—"}
+                          </td>
+                        </>
+                      )}
+                      <td className="px-3 py-2.5 align-middle">
+                        <div className="text-[11px] text-ink">
+                          {m.top_color ? `${m.top_color[0]} (${m.top_color[1]})` : "—"}
+                        </div>
+                        <div className="text-[10px] text-ink-subtle">
+                          размер {m.top_size ? `${m.top_size[0]} (${m.top_size[1]})` : "—"}
+                        </div>
+                      </td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={hasPremium ? 10 : 7} className="p-0 bg-surface-alt border-t border-line-soft">
+                          <ModelDetail m={m} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+function ModelDetail({ m }: { m: ModelCross }) {
+  return (
+    <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Distribution title="По цветам" items={m.colors} totalLabel="единиц" />
+      <Distribution title="По размерам" items={m.sizes} totalLabel="единиц" />
+    </div>
+  );
+}
+
+
+function Distribution({
+  title, items, totalLabel,
+}: {
+  title: string;
+  items: Array<[string, number]>;
+  totalLabel: string;
+}) {
+  const total = items.reduce((s, [, v]) => s + v, 0);
+  if (total === 0) {
+    return (
+      <div className="card p-3">
+        <h4 className="text-[12px] font-semibold mb-1.5">{title}</h4>
+        <div className="text-[11px] text-ink-subtle">Нет продаж — нечего распределять.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="card p-3">
+      <header className="mb-2 flex items-baseline justify-between">
+        <h4 className="text-[12px] font-semibold">{title}</h4>
+        <span className="text-[10px] text-ink-subtle">{total} {totalLabel}</span>
+      </header>
+      <ul className="flex flex-col gap-1.5">
+        {items.map(([name, count]) => {
+          const pct = (count / total) * 100;
+          return (
+            <li key={name} className="flex items-center gap-2 text-[11px]">
+              <span className="w-16 truncate text-ink">{name}</span>
+              <div className="flex-1 h-2 bg-surface rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-brand"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="w-12 text-right text-ink-muted tabular-nums">
+                {count}
+                <span className="text-ink-subtle ml-1 text-[10px]">{pct.toFixed(0)}%</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 
 function ItemLabel({ c }: { c: OzonCard }) {
   return (

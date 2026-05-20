@@ -211,6 +211,34 @@ export interface OzonCard {
   premium_history: OzonPremiumWeek[];
 }
 
+export type ExecSummaryKind = "win" | "urgent" | "warning" | "opportunity" | "info";
+
+export interface ExecSummaryItem {
+  kind: ExecSummaryKind;
+  icon: string;
+  text: string;
+  sku?: string;
+}
+
+export interface ModelCross {
+  name: string;
+  sku_count: number;
+  skus_silent: number;
+  units_sold: number;
+  revenue: number;
+  avg_ticket: number;
+  cancel_rate: number;
+  search_users: number;
+  view_users: number;
+  avg_position: number | null;
+  avg_conversion_pct: number | null;
+  stock: number;
+  colors: Array<[string, number]>;
+  sizes: Array<[string, number]>;
+  top_color: [string, number] | null;
+  top_size: [string, number] | null;
+}
+
 export interface OzonCardsResponse {
   period: string;
   period_from: string | null;
@@ -231,6 +259,8 @@ export interface OzonCardsResponse {
   at_risk: OzonCard[];
   position_dropping: OzonCard[];
   low_ctr: OzonCard[];
+  executive_summary: ExecSummaryItem[];
+  models_cross: ModelCross[];
 }
 
 export interface OzonAnalyticsResponse {
