@@ -166,6 +166,16 @@ export interface SiteAnalyticsResponse {
   products: ProductBreakdown[];
 }
 
+export interface OzonPremiumWeek {
+  period_from: string;
+  period_to: string;
+  search_users: number;
+  position: number;
+  view_users: number;
+  conversion_pct: number;
+  gmv: number;
+}
+
 export interface OzonCard {
   sku: string;
   model: string;
@@ -191,6 +201,14 @@ export interface OzonCard {
   available: number;
   days_to_stockout: number | null;
   tags: string[];
+  // Premium-метрики (могут быть null если Premium недоступен)
+  search_users: number | null;
+  position: number | null;
+  position_delta: number | null;   // отрицательное = позиция ухудшилась
+  view_users: number | null;
+  view_conversion_pct: number | null;
+  premium_period: string | null;
+  premium_history: OzonPremiumWeek[];
 }
 
 export interface OzonCardsResponse {
@@ -205,11 +223,14 @@ export interface OzonCardsResponse {
   stock_risk_skus: number;
   total_revenue: number;
   total_units: number;
+  has_premium_data: boolean;
   cards: OzonCard[];
   top_movers: OzonCard[];
   slow_movers: OzonCard[];
   high_cancel: OzonCard[];
   at_risk: OzonCard[];
+  position_dropping: OzonCard[];
+  low_ctr: OzonCard[];
 }
 
 export interface OzonAnalyticsResponse {

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import {
-  AlertTriangle, ArrowDownUp, Flame, MoonStar, PackageX,
-  Search, ShieldAlert, Sparkles, TrendingDown, TrendingUp, X,
+  AlertTriangle, ArrowDownUp, ArrowDownRight, ArrowUpRight, Eye, Flame,
+  PackageX, Search, ShieldAlert, Sparkles, Target,
+  TrendingDown, TrendingUp, X,
 } from "lucide-react";
 import { api, type OzonCard, type OzonCardsResponse } from "../api";
 import { StatCard } from "../components/StatCard";
@@ -31,7 +32,8 @@ const PRESETS: Array<{ key: PeriodKey; label: string }> = [
 ];
 
 type SortBy =
-  | "revenue" | "units" | "velocity" | "cancel" | "available" | "days_to_stockout";
+  | "revenue" | "units" | "velocity" | "cancel" | "available"
+  | "days_to_stockout" | "search_users" | "position" | "position_delta" | "conversion";
 
 const SORT_LABEL: Record<SortBy, string> = {
   revenue: "Выручка ↓",
@@ -40,6 +42,10 @@ const SORT_LABEL: Record<SortBy, string> = {
   cancel: "% отмен ↓",
   available: "Остаток ↑",
   days_to_stockout: "Дней до 0 ↑",
+  search_users: "Показы ↓",
+  position: "Позиция ↑",
+  position_delta: "Падение позиции ↓",
+  conversion: "Конверсия ↓",
 };
 
 // Тэги для подсветки в таблице
@@ -48,6 +54,9 @@ const TAG_LABEL: Record<string, { text: string; cls: string }> = {
   high_cancel: { text: "много отмен", cls: "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800" },
   stock_risk: { text: "заканчивается", cls: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800" },
   out_of_stock: { text: "распродан", cls: "bg-slate-100 text-slate-500 border-slate-300 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600" },
+  position_dropping: { text: "падает в выдаче", cls: "bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-800" },
+  position_rising: { text: "растёт в выдаче", cls: "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800" },
+  low_ctr: { text: "низкий CTR", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800" },
 };
 
 export function OzonTraffic() {
@@ -99,6 +108,7 @@ export function OzonTraffic() {
       list = list.filter((c) => c.tags.includes(tagFilter));
     }
     const sorted = [...list];
+    const safe = (v: number | null | undefined, fallback: number) => (v == null ? fallback : v);
     switch (sortBy) {
       case "revenue":
         sorted.sort((a, b) => b.revenue_realized - a.revenue_realized);
@@ -118,11 +128,20 @@ export function OzonTraffic() {
         sorted.sort((a, b) => a.available - b.available);
         break;
       case "days_to_stockout":
-        sorted.sort((a, b) => {
-          const av = a.days_to_stockout ?? 99999;
-          const bv = b.days_to_stockout ?? 99999;
-          return av - bv;
-        });
+        sorted.sort((a, b) => safe(a.days_to_stockout, 99999) - safe(b.days_to_stockout, 99999));
+        break;
+      case "search_users":
+        sorted.sort((a, b) => safe(b.search_users, 0) - safe(a.search_users, 0));
+        break;
+      case "position":
+        sorted.sort((a, b) => safe(a.position, 99999) - safe(b.position, 99999));
+        break;
+      case "position_delta":
+        // Самые сильные падения (отрицательная дельта) первыми
+        sorted.sort((a, b) => safe(a.position_delta, 99999) - safe(b.position_delta, 99999));
+        break;
+      case "conversion":
+        sorted.sort((a, b) => safe(b.view_conversion_pct, 0) - safe(a.view_conversion_pct, 0));
         break;
     }
     return sorted;
@@ -283,6 +302,52 @@ export function OzonTraffic() {
             />
           </section>
 
+          {/* === Premium insights (показы / позиция / конверсия) === */}
+          {data.has_premium_data && (
+            <section className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <InsightBlock
+                icon={<ArrowDownRight size={14} />}
+                title="📉 Падают в выдаче"
+                hint="алгоритм Ozon опускает карточку — теряем естественный трафик"
+                items={data.position_dropping}
+                renderRow={(c) => (
+                  <>
+                    <ItemLabel c={c} />
+                    <div className="text-right tabular-nums">
+                      <div className="text-orange-700 dark:text-orange-300 font-medium">
+                        Δ {c.position_delta}
+                      </div>
+                      <div className="text-[10px] text-ink-subtle">
+                        позиция {c.position}
+                      </div>
+                    </div>
+                  </>
+                )}
+                onItemClick={setSelected}
+              />
+              <InsightBlock
+                icon={<Target size={14} />}
+                title="🎯 Много показов, низкая конверсия"
+                hint="карточка показывается, но клиенты не кликают — фото / название / цена"
+                items={data.low_ctr}
+                renderRow={(c) => (
+                  <>
+                    <ItemLabel c={c} />
+                    <div className="text-right tabular-nums">
+                      <div className="text-rose-700 dark:text-rose-300 font-medium">
+                        {c.view_conversion_pct?.toFixed(2)}%
+                      </div>
+                      <div className="text-[10px] text-ink-subtle">
+                        {formatNum(c.search_users || 0)} показов
+                      </div>
+                    </div>
+                  </>
+                )}
+                onItemClick={setSelected}
+              />
+            </section>
+          )}
+
           {/* Поиск + фильтры */}
           <section className="mt-8 mb-3">
             <div className="flex flex-col lg:flex-row gap-2">
@@ -319,6 +384,9 @@ export function OzonTraffic() {
                   <option value="high_cancel">Высокий cancel</option>
                   <option value="stock_risk">Stock-risk</option>
                   <option value="out_of_stock">Out-of-stock</option>
+                  <option value="position_dropping">Падают в выдаче</option>
+                  <option value="position_rising">Растут в выдаче</option>
+                  <option value="low_ctr">Низкий CTR</option>
                 </select>
               </div>
             </div>
@@ -328,7 +396,7 @@ export function OzonTraffic() {
           {filtered && filtered.length > 0 ? (
             <div className="card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-[12px] min-w-[900px]">
+                <table className="w-full text-[12px] min-w-[1280px]">
                   <thead className="bg-surface-alt border-b border-line text-ink-muted">
                     <tr>
                       <Th>Артикул</Th>
@@ -337,6 +405,13 @@ export function OzonTraffic() {
                       <Th align="right">Выручка</Th>
                       <Th align="right">Velocity</Th>
                       <Th align="right">% отмен</Th>
+                      {data.has_premium_data && (
+                        <>
+                          <Th align="right">Показы</Th>
+                          <Th align="right">Позиция</Th>
+                          <Th align="right">Конв-я</Th>
+                        </>
+                      )}
                       <Th align="right">Остаток</Th>
                       <Th align="right">До 0</Th>
                       <Th>Теги</Th>
@@ -362,6 +437,36 @@ export function OzonTraffic() {
                           <Td align="right" className={clsx("tabular-nums", c.cancel_rate > 0.5 && "text-rose-700 dark:text-rose-300 font-medium")}>
                             {formatPct(c.cancel_rate)}
                           </Td>
+                          {data.has_premium_data && (
+                            <>
+                              <Td align="right" className="tabular-nums">
+                                {c.search_users != null ? formatNum(c.search_users) : "—"}
+                              </Td>
+                              <Td align="right" className="tabular-nums whitespace-nowrap">
+                                {c.position != null ? (
+                                  <>
+                                    {c.position}
+                                    {c.position_delta != null && c.position_delta !== 0 && (
+                                      <span className={clsx(
+                                        "ml-1 text-[10px]",
+                                        c.position_delta > 0
+                                          ? "text-emerald-700 dark:text-emerald-300"
+                                          : "text-orange-700 dark:text-orange-300",
+                                      )}>
+                                        {c.position_delta > 0 ? "↑" : "↓"}{Math.abs(c.position_delta)}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : "—"}
+                              </Td>
+                              <Td align="right" className={clsx(
+                                "tabular-nums",
+                                c.view_conversion_pct != null && c.view_conversion_pct < 0.5 && "text-rose-700 dark:text-rose-300 font-medium",
+                              )}>
+                                {c.view_conversion_pct != null ? `${c.view_conversion_pct.toFixed(2)}%` : "—"}
+                              </Td>
+                            </>
+                          )}
                           <Td align="right" className="tabular-nums">{c.available}</Td>
                           <Td align="right" className={clsx("tabular-nums", c.days_to_stockout !== null && c.days_to_stockout < 7 && "text-amber-700 dark:text-amber-300 font-medium")}>
                             {c.days_to_stockout !== null ? `${c.days_to_stockout.toFixed(1)} дн.` : "—"}
@@ -460,6 +565,12 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
   if (card.tags.includes("stock_risk") && card.days_to_stockout !== null) {
     recommendations.push(`Закончится через ~${card.days_to_stockout.toFixed(1)} дней — срочно пополни (минимум на 2-3 недели × ${card.velocity_per_day.toFixed(2)} = ${Math.ceil(card.velocity_per_day * 21)} единиц).`);
   }
+  if (card.tags.includes("position_dropping") && card.position_delta != null) {
+    recommendations.push(`Позиция в выдаче упала на ${Math.abs(card.position_delta)} мест за неделю (с ${(card.position ?? 0) - card.position_delta} на ${card.position}). Алгоритм Ozon опускает карточку — нужно понять причину: упали отзывы? Закончился рекламный буст? Появились более активные конкуренты?`);
+  }
+  if (card.tags.includes("low_ctr") && card.view_conversion_pct != null && card.search_users != null) {
+    recommendations.push(`${formatNum(card.search_users)} показов, но конверсия в открытие всего ${card.view_conversion_pct.toFixed(2)}%. Карточка появляется в поиске, но клиенты не кликают. Проверь: главное фото зацепляющее? Цена в норме относительно конкурентов? Название содержит ключевые слова?`);
+  }
   if (card.tags.includes("silent") && card.available > 0) {
     recommendations.push(`Нет продаж ${card.days_since_last_sale === null ? "никогда" : `>${card.days_since_last_sale} дней`}, при этом ${card.available} шт. на складе. Проверь: фото / описание / цена адекватная? Может, нужна скидка или совсем убрать карточку.`);
   }
@@ -537,9 +648,116 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
           <Metric label="Посл. продажа" value={card.last_sale || "—"} hint={card.days_since_last_sale !== null ? `${card.days_since_last_sale} дн. назад` : ""} />
         </div>
 
+        {/* Premium-блок */}
+        {card.search_users != null && card.premium_history.length > 0 && (
+          <div className="mb-4">
+            <h3 className="text-[12px] font-semibold uppercase tracking-wider text-ink-muted mb-2 flex items-center gap-1.5">
+              <Eye size={12} /> Трафик на Ozon (Premium)
+              <span className="text-[10px] text-ink-subtle normal-case font-normal">
+                · {card.premium_period}
+              </span>
+            </h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+              <Metric label="Показы в поиске" value={formatNum(card.search_users)} hint="уникальные" />
+              <Metric label="Открытий карточки" value={formatNum(card.view_users || 0)} hint="уникальные" />
+              <Metric
+                label="Конверсия показ→PDP"
+                value={`${(card.view_conversion_pct ?? 0).toFixed(2)}%`}
+                warning={(card.view_conversion_pct ?? 0) < 0.5}
+              />
+              <Metric
+                label="Позиция в выдаче"
+                value={
+                  <>
+                    {card.position}
+                    {card.position_delta != null && card.position_delta !== 0 && (
+                      <span className={clsx(
+                        "ml-1.5 text-[11px]",
+                        card.position_delta > 0
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-orange-700 dark:text-orange-300",
+                      )}>
+                        {card.position_delta > 0 ? "↑" : "↓"}{Math.abs(card.position_delta)}
+                      </span>
+                    )}
+                  </>
+                }
+                hint="среднее за неделю (меньше = лучше)"
+                warning={(card.position_delta ?? 0) <= -10}
+              />
+            </div>
+            <HistoryChart history={card.premium_history} />
+          </div>
+        )}
+
         <div className="text-[11px] text-ink-subtle">
           Комиссия Ozon: {formatRub(card.commission)} · отправлений по этому SKU: {card.postings_count}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function HistoryChart({ history }: { history: OzonCard["premium_history"] }) {
+  if (history.length < 2) {
+    return (
+      <div className="text-[11px] text-ink-subtle">
+        История: {history.length} {history.length === 1 ? "запись" : "записей"} — графика будет больше через пару недель.
+      </div>
+    );
+  }
+  // История идёт от свежей к старой — переворачиваем для отображения слева направо по времени
+  const data = [...history].reverse();
+  const positions = data.map((w) => w.position || 999);
+  const convs = data.map((w) => w.conversion_pct || 0);
+  const maxPos = Math.max(...positions);
+  const minPos = Math.min(...positions);
+  const maxConv = Math.max(0.1, ...convs);
+
+  const w = 400, h = 100, padX = 8, padTop = 8, padBottom = 22;
+  const innerW = w - padX * 2;
+  const innerH = h - padTop - padBottom;
+  const xAt = (i: number) => padX + (data.length === 1 ? innerW / 2 : (i / (data.length - 1)) * innerW);
+  // Позиция: меньше = лучше = выше на графике → инвертируем шкалу
+  const yPos = (p: number) => {
+    if (maxPos === minPos) return padTop + innerH / 2;
+    return padTop + ((p - minPos) / (maxPos - minPos)) * innerH;
+  };
+  const yConv = (c: number) => padTop + innerH - (c / maxConv) * innerH;
+
+  const linePath = (vals: number[], yFn: (v: number) => number) =>
+    vals.map((v, i) => `${i === 0 ? "M" : "L"} ${xAt(i).toFixed(1)} ${yFn(v).toFixed(1)}`).join(" ");
+
+  return (
+    <div className="card bg-surface-alt p-3">
+      <header className="mb-2 flex items-baseline justify-between text-[11px]">
+        <span className="font-semibold tracking-tightish">История по неделям</span>
+        <span className="text-ink-subtle">{data.length} нед.</span>
+      </header>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
+        {/* Позиция — оранжевая */}
+        <path d={linePath(positions, yPos)} fill="none" stroke="#ea580c" strokeWidth="2" />
+        {positions.map((p, i) => (
+          <circle key={`p-${i}`} cx={xAt(i)} cy={yPos(p)} r="3" fill="#ea580c" />
+        ))}
+        {/* Конверсия — синяя */}
+        <path d={linePath(convs, yConv)} fill="none" stroke="#1a0088" strokeWidth="2" strokeDasharray="4 2" />
+        {convs.map((c, i) => (
+          <circle key={`c-${i}`} cx={xAt(i)} cy={yConv(c)} r="3" fill="#1a0088" />
+        ))}
+      </svg>
+      <div className="flex justify-between text-[9px] text-ink-subtle px-1 mt-0.5 tabular-nums">
+        {data.map((w, i) => (
+          <span key={i}>{w.period_from.slice(5)}</span>
+        ))}
+      </div>
+      <div className="flex gap-3 text-[10px] mt-2">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-0.5 bg-orange-600" /> позиция (вверх = хуже)
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 inline-block" style={{ borderTop: "1px dashed #1a0088" }} /> конверсия %
+        </span>
       </div>
     </div>
   );
