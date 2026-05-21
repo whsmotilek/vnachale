@@ -202,11 +202,12 @@ export interface OzonCard {
   days_to_stockout: number | null;
   tags: string[];
   // Premium-метрики (могут быть null если Premium недоступен)
-  search_users: number | null;
-  position: number | null;
-  position_delta: number | null;   // отрицательное = позиция ухудшилась
-  view_users: number | null;
-  view_conversion_pct: number | null;
+  search_users: number | null;       // уник. пользователи, видевшие карточку в поиске (дедуп 1x/день)
+  position: number | null;            // средняя позиция по топ-10 запросов товара (меньше = выше)
+  position_delta: number | null;      // prev_position - current_position. + = поднялась к топу, - = упала вниз
+  view_users: number | null;          // уник. пользователи, открывшие карточку
+  view_conversion_pct: number | null; // конверсия в покупку через поиск (из Ozon API, НЕ CTR показ→PDP)
+  click_conversion_pct: number | null;// CTR показ→PDP (наш расчёт = view_users / search_users * 100)
   premium_period: string | null;
   premium_history: OzonPremiumWeek[];
 }

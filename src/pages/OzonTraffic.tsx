@@ -339,22 +339,27 @@ export function OzonTraffic() {
               />
               <InsightBlock
                 icon={<Target size={14} />}
-                title="🎯 Много показов, низкая конверсия"
-                hint="карточка показывается, но клиенты не кликают — фото / название / цена"
+                title="🎯 Много показов, низкий CTR"
+                hint="карточка появляется в поиске, но клиенты не кликают — фото / название / цена"
                 items={data.low_ctr}
-                renderRow={(c) => (
-                  <>
-                    <ItemLabel c={c} />
-                    <div className="text-right tabular-nums">
-                      <div className="text-rose-700 dark:text-rose-300 font-medium">
-                        {c.view_conversion_pct?.toFixed(2)}%
+                renderRow={(c) => {
+                  const ctr = c.search_users && c.view_users != null
+                    ? (c.view_users / c.search_users) * 100
+                    : null;
+                  return (
+                    <>
+                      <ItemLabel c={c} />
+                      <div className="text-right tabular-nums">
+                        <div className="text-rose-700 dark:text-rose-300 font-medium">
+                          {ctr != null ? `${ctr.toFixed(1)}%` : "—"}
+                        </div>
+                        <div className="text-[10px] text-ink-subtle">
+                          {formatNum(c.search_users || 0)} увидели
+                        </div>
                       </div>
-                      <div className="text-[10px] text-ink-subtle">
-                        {formatNum(c.search_users || 0)} показов
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  );
+                }}
                 onItemClick={setSelected}
               />
             </section>
@@ -424,9 +429,9 @@ export function OzonTraffic() {
                       <Th align="right">% отмен</Th>
                       {data.has_premium_data && (
                         <>
-                          <Th align="right">Показы</Th>
-                          <Th align="right">Позиция</Th>
-                          <Th align="right">Конв-я</Th>
+                          <Th align="right" title="Уникальные пользователи, которым показалась карточка в поиске (Premium API, дедуп 1 раз в день)">Уник. в поиске</Th>
+                          <Th align="right" title="Средняя позиция по топ-10 запросов твоего товара (Premium API). Меньше — выше в выдаче. Зелёная стрелка = поднялась к топу.">Позиция</Th>
+                          <Th align="right" title="CTR (наш расчёт) = открыли карточку / увидели в поиске">CTR</Th>
                         </>
                       )}
                       <Th align="right">Остаток</Th>
@@ -478,9 +483,12 @@ export function OzonTraffic() {
                               </Td>
                               <Td align="right" className={clsx(
                                 "tabular-nums",
-                                c.view_conversion_pct != null && c.view_conversion_pct < 0.5 && "text-rose-700 dark:text-rose-300 font-medium",
+                                // CTR = открыли карточку / увидели в поиске; ниже 5% — слабо
+                                c.search_users && c.view_users != null && (c.view_users / c.search_users) * 100 < 5 && "text-rose-700 dark:text-rose-300 font-medium",
                               )}>
-                                {c.view_conversion_pct != null ? `${c.view_conversion_pct.toFixed(2)}%` : "—"}
+                                {c.search_users && c.view_users != null
+                                  ? `${((c.view_users / c.search_users) * 100).toFixed(1)}%`
+                                  : "—"}
                               </Td>
                             </>
                           )}
@@ -809,10 +817,18 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
     recommendations.push(`Закончится через ~${card.days_to_stockout.toFixed(1)} дней — срочно пополни (минимум на 2-3 недели × ${card.velocity_per_day.toFixed(2)} = ${Math.ceil(card.velocity_per_day * 21)} единиц).`);
   }
   if (card.tags.includes("position_dropping") && card.position_delta != null) {
-    recommendations.push(`Позиция в выдаче упала на ${Math.abs(card.position_delta)} мест за неделю (с ${(card.position ?? 0) - card.position_delta} на ${card.position}). Алгоритм Ozon опускает карточку — нужно понять причину: упали отзывы? Закончился рекламный буст? Появились более активные конкуренты?`);
+    // position_delta = prev - current. Отрицательная delta = карточка опустилась вниз
+    // (число позиции стало больше). prev = current + delta.
+    const prevPos = (card.position ?? 0) + card.position_delta;
+    recommendations.push(`Позиция в выдаче упала на ${Math.abs(card.position_delta)} мест за неделю (с ${prevPos} на ${card.position}, чем больше число — тем ниже в выдаче). Это среднее по топ-10 поисковых запросов твоего товара. Алгоритм Ozon опускает карточку — изучи: упали отзывы? Закончился рекламный буст? Появились более активные конкуренты?`);
   }
-  if (card.tags.includes("low_ctr") && card.view_conversion_pct != null && card.search_users != null) {
-    recommendations.push(`${formatNum(card.search_users)} показов, но конверсия в открытие всего ${card.view_conversion_pct.toFixed(2)}%. Карточка появляется в поиске, но клиенты не кликают. Проверь: главное фото зацепляющее? Цена в норме относительно конкурентов? Название содержит ключевые слова?`);
+  // Используем НАШ click-conversion (view_users / search_users), а не view_conversion из API
+  // (API даёт конверсию в покупку через поиск, а не CTR показ→PDP).
+  const realCtrPct = card.search_users && card.view_users
+    ? (card.view_users / card.search_users) * 100
+    : null;
+  if (card.tags.includes("low_ctr") && realCtrPct != null && card.search_users != null) {
+    recommendations.push(`${formatNum(card.search_users)} уникальных пользователей увидели карточку в поиске, но открыли её только ${formatNum(card.view_users ?? 0)} — CTR ${realCtrPct.toFixed(1)}%. Карточка показывается, но не цепляет. Проверь: главное фото зацепляющее? Цена в норме относительно конкурентов? Название содержит ключевые слова?`);
   }
   if (card.tags.includes("silent") && card.available > 0) {
     recommendations.push(`Нет продаж ${card.days_since_last_sale === null ? "никогда" : `>${card.days_since_last_sale} дней`}, при этом ${card.available} шт. на складе. Проверь: фото / описание / цена адекватная? Может, нужна скидка или совсем убрать карточку.`);
@@ -901,12 +917,13 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
               </span>
             </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-              <Metric label="Показы в поиске" value={formatNum(card.search_users)} hint="уникальные" />
-              <Metric label="Открытий карточки" value={formatNum(card.view_users || 0)} hint="уникальные" />
+              <Metric label="Уник. в поиске" value={formatNum(card.search_users)} hint="видели карточку, дедуп 1×/день" />
+              <Metric label="Открыли карточку" value={formatNum(card.view_users || 0)} hint="уникальные за период" />
               <Metric
-                label="Конверсия показ→PDP"
-                value={`${(card.view_conversion_pct ?? 0).toFixed(2)}%`}
-                warning={(card.view_conversion_pct ?? 0) < 0.5}
+                label="CTR показ→PDP"
+                value={realCtrPct != null ? `${realCtrPct.toFixed(1)}%` : "—"}
+                hint="наш расчёт = открыли / увидели"
+                warning={realCtrPct != null && realCtrPct < 5}
               />
               <Metric
                 label="Позиция в выдаче"
@@ -916,6 +933,8 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
                     {card.position_delta != null && card.position_delta !== 0 && (
                       <span className={clsx(
                         "ml-1.5 text-[11px]",
+                        // delta > 0 = позиция стала меньше = поднялась к топу (улучшение)
+                        // delta < 0 = позиция стала больше = упала вниз (ухудшение)
                         card.position_delta > 0
                           ? "text-emerald-700 dark:text-emerald-300"
                           : "text-orange-700 dark:text-orange-300",
@@ -925,7 +944,7 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
                     )}
                   </>
                 }
-                hint="среднее за неделю (меньше = лучше)"
+                hint="средняя по топ-10 запросов · меньше = выше в выдаче"
                 warning={(card.position_delta ?? 0) <= -10}
               />
             </div>
@@ -952,7 +971,11 @@ function HistoryChart({ history }: { history: OzonCard["premium_history"] }) {
   // История идёт от свежей к старой — переворачиваем для отображения слева направо по времени
   const data = [...history].reverse();
   const positions = data.map((w) => w.position || 999);
-  const convs = data.map((w) => w.conversion_pct || 0);
+  // CTR показ→PDP по неделям (наш расчёт = view_users / search_users * 100).
+  // НЕ используем conversion_pct из API — там конверсия в покупку через поиск, не CTR.
+  const convs = data.map((w) =>
+    w.search_users > 0 ? (w.view_users / w.search_users) * 100 : 0
+  );
   const maxPos = Math.max(...positions);
   const minPos = Math.min(...positions);
   const maxConv = Math.max(0.1, ...convs);
@@ -999,7 +1022,7 @@ function HistoryChart({ history }: { history: OzonCard["premium_history"] }) {
           <span className="w-3 h-0.5 bg-orange-600" /> позиция (вверх = хуже)
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 inline-block" style={{ borderTop: "1px dashed #1a0088" }} /> конверсия %
+          <span className="w-3 inline-block" style={{ borderTop: "1px dashed #1a0088" }} /> CTR показ→PDP %
         </span>
       </div>
     </div>
@@ -1020,9 +1043,16 @@ function Metric({
   );
 }
 
-function Th({ children, align = "left" }: { children?: React.ReactNode; align?: "left" | "right" }) {
+function Th({ children, align = "left", title }: { children?: React.ReactNode; align?: "left" | "right"; title?: string }) {
   return (
-    <th className={clsx("px-3 py-2 font-medium text-[10px] uppercase tracking-wider", align === "right" ? "text-right" : "text-left")}>
+    <th
+      title={title}
+      className={clsx(
+        "px-3 py-2 font-medium text-[10px] uppercase tracking-wider",
+        align === "right" ? "text-right" : "text-left",
+        title && "cursor-help underline decoration-dotted decoration-ink-soft underline-offset-2",
+      )}
+    >
       {children}
     </th>
   );
