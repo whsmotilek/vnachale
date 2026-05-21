@@ -280,10 +280,98 @@ export function Ozon() {
             <StatCard label="Отмены" value={formatPct(data.cancel_rate * 100)} hint={`${data.cancelled_count} отправл.`} />
           </section>
 
+          {/* === Дополнительные KPI: возвраты, акции, локальность === */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            <StatCard
+              label="Возвраты"
+              value={formatNum(data.returns_count || 0)}
+              hint={`${formatRub(data.returns_value || 0)} · только настоящие (ClientReturn)`}
+            />
+            <StatCard
+              label="Через акции"
+              value={`${(data.promotion_share_pct || 0).toFixed(0)}%`}
+              hint={`${formatRub(data.promotion_revenue || 0)} в ${formatNum(data.promotion_postings || 0)} отправл.`}
+            />
+            <StatCard
+              label="Локальные продажи"
+              value={`${(data.local_share_pct || 0).toFixed(0)}%`}
+              hint={`${formatRub(data.local_revenue || 0)} из родного кластера`}
+            />
+            <StatCard
+              label="Премиум-аудитория"
+              value={`${(data.premium_share_pct || 0).toFixed(0)}%`}
+              hint="заказов от Ozon Premium-покупателей"
+            />
+          </section>
+
           {/* === Динамика выручки === */}
           <section className="mt-6 animate-slide-up-fast">
             <Sparkline data={data.daily_revenue} height={180} />
           </section>
+
+          {/* === Возвраты: причины + кластеры + акции === */}
+          {((data.top_return_reasons?.length || 0) > 0 || (data.cluster_breakdown?.length || 0) > 0) && (
+            <section className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-3 animate-slide-up-fast">
+              {data.top_return_reasons && data.top_return_reasons.length > 0 && (
+                <BarList
+                  title="Топ причин возврата"
+                  variant="neutral"
+                  items={data.top_return_reasons.map(([reason, n]) => ({ label: reason, value: n }))}
+                  unit="шт"
+                />
+              )}
+              {data.cluster_breakdown && data.cluster_breakdown.length > 0 && (
+                <div className="card p-4 lg:col-span-2">
+                  <h3 className="text-[12px] font-semibold uppercase tracking-wider text-ink-muted mb-2">
+                    Кластеры → локальность
+                    <span className="ml-2 text-[10px] text-ink-subtle normal-case font-normal">
+                      высокая локальность = склад рядом с покупателями
+                    </span>
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px]">
+                      <thead className="text-ink-muted text-[10px] uppercase tracking-wider border-b border-line">
+                        <tr>
+                          <th className="text-left py-1.5">Кластер</th>
+                          <th className="text-right py-1.5">Выручка</th>
+                          <th className="text-right py-1.5">Заказов</th>
+                          <th className="text-right py-1.5">Локальных</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.cluster_breakdown.slice(0, 10).map((c) => (
+                          <tr key={c.cluster} className="border-t border-line-soft">
+                            <td className="py-1.5 text-ink">{c.cluster}</td>
+                            <td className="py-1.5 text-right tabular-nums">{formatRub(c.revenue)}</td>
+                            <td className="py-1.5 text-right tabular-nums text-ink-muted">{c.orders}</td>
+                            <td className={`py-1.5 text-right tabular-nums font-medium ${
+                              c.local_pct >= 70 ? "text-emerald-700 dark:text-emerald-300"
+                              : c.local_pct >= 50 ? "text-amber-700 dark:text-amber-300"
+                              : "text-rose-700 dark:text-rose-300"
+                            }`}>
+                              {c.local_pct.toFixed(0)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* === Топ акций === */}
+          {data.top_actions && data.top_actions.length > 0 && (
+            <section className="mt-3 animate-slide-up-fast">
+              <BarList
+                title="Топ акций по выручке"
+                variant="neutral"
+                items={data.top_actions.map((a) => ({ label: a.name, value: a.revenue }))}
+                unit="₽"
+              />
+            </section>
+          )}
 
           {/* === Если товар выбран — детали === */}
           {product && filteredProduct && (

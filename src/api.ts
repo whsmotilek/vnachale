@@ -223,6 +223,15 @@ export interface OzonCard {
   ozon_grade: "green" | "yellow" | "red" | null;  // IDC грейд карточки
   turnover_days: number | null;                    // средний срок продажи остатка
   ads_per_day: number | null;                      // average daily sales
+  // Возвраты (только настоящие ClientReturn)
+  returned_count: number;
+  returned_value: number;
+  top_return_reasons: Array<[string, number]>;
+  // Content rating — заполненность карточки от Ozon (0-100)
+  content_rating: number | null;
+  content_media: number | null;
+  content_text: number | null;
+  content_attributes: number | null;
 }
 
 export type ExecSummaryKind = "win" | "urgent" | "warning" | "opportunity" | "info";
@@ -277,6 +286,19 @@ export interface OzonCardsResponse {
   models_cross: ModelCross[];
 }
 
+export interface ClusterBreakdown {
+  cluster: string;
+  revenue: number;
+  orders: number;
+  local_pct: number;
+}
+
+export interface ActionBreakdown {
+  name: string;
+  revenue: number;
+  orders: number;
+}
+
 export interface OzonAnalyticsResponse {
   period: string;
   period_from: string | null;
@@ -295,6 +317,21 @@ export interface OzonAnalyticsResponse {
   aov: number;
   cancel_rate: number;
   cancelled_count: number;
+  // Возвраты (только настоящие ClientReturn, без отказов на доставке)
+  returns_count: number;
+  returns_value: number;
+  top_return_reasons: Array<[string, number]>;
+  // Новые метрики из расширенного sync_ozon
+  promotion_share_pct: number;
+  promotion_revenue: number;
+  promotion_postings: number;
+  local_share_pct: number;
+  local_revenue: number;
+  cross_revenue: number;
+  premium_share_pct: number;
+  top_actions: ActionBreakdown[];
+  cluster_breakdown: ClusterBreakdown[];
+  // Существующие
   status_counts: Record<string, number>;
   scheme_counts: Record<string, number>;
   top_cities: Array<[string, number]>;

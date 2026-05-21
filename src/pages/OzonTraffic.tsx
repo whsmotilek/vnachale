@@ -1010,9 +1010,9 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
           </div>
         )}
 
-        {/* Ozon-грейд + оборачиваемость */}
-        {(card.ozon_grade || card.turnover_days != null) && (
-          <div className="mb-4 grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Ozon-грейд + оборачиваемость + content rating */}
+        {(card.ozon_grade || card.turnover_days != null || card.content_rating != null) && (
+          <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
             {card.ozon_grade && (
               <Metric
                 label="Грейд Ozon"
@@ -1044,6 +1044,46 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
                 value={card.ads_per_day.toFixed(2)}
                 hint="из API Ozon (ADS)"
               />
+            )}
+            {card.content_rating != null && (
+              <Metric
+                label="Контент карточки"
+                value={`${card.content_rating}/100`}
+                hint={`📷 ${card.content_media || 0} · 📝 ${card.content_text || 0} · 📋 ${card.content_attributes || 0}`}
+                warning={card.content_rating < 80}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Возвраты по этому SKU */}
+        {(card.returned_count || 0) > 0 && (
+          <div className="mb-4 card bg-rose-50/40 dark:bg-rose-900/10 border-rose-200/60 dark:border-rose-800/40 p-3">
+            <h3 className="text-[12px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-300 mb-2 flex items-center gap-1.5">
+              ⬅️ Возвраты за период
+              <span className="text-[10px] text-ink-subtle normal-case font-normal">
+                · только настоящие (после получения товара)
+              </span>
+            </h3>
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-muted">Количество</div>
+                <div className="text-[15px] font-semibold text-rose-700 dark:text-rose-300 tabular-nums">{card.returned_count} шт.</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-muted">Сумма</div>
+                <div className="text-[15px] font-semibold text-rose-700 dark:text-rose-300 tabular-nums">{formatRub(card.returned_value)}</div>
+              </div>
+            </div>
+            {card.top_return_reasons && card.top_return_reasons.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-muted mb-1">Причины</div>
+                <ul className="space-y-0.5 text-[12px]">
+                  {card.top_return_reasons.map(([reason, n], i) => (
+                    <li key={i} className="text-ink">• {reason} <span className="text-ink-subtle">({n})</span></li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
