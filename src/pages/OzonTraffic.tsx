@@ -58,9 +58,9 @@ const TAG_LABEL: Record<string, { text: string; cls: string }> = {
   high_cancel: { text: "много отмен", cls: "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800" },
   stock_risk: { text: "заканчивается", cls: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800" },
   out_of_stock: { text: "распродан", cls: "bg-slate-100 text-slate-500 border-slate-300 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600" },
-  position_dropping: { text: "падает в выдаче", cls: "bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-800" },
-  position_rising: { text: "растёт в выдаче", cls: "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800" },
-  low_ctr: { text: "низкий CTR", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800" },
+  position_dropping: { text: "падает в поиске", cls: "bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-800" },
+  position_rising: { text: "растёт в поиске", cls: "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800" },
+  low_ctr: { text: "слабая поисковая воронка", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800" },
 };
 
 export function OzonTraffic() {
@@ -156,10 +156,10 @@ export function OzonTraffic() {
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Селект · Трафик карточек</h1>
         <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
-          Поведение каждой карточки на Ozon: что продаётся, что простаивает, где
-          высокий процент отмен, кто закончится через несколько дней. Анализ строится
-          по реальным заказам — Ozon API не даёт показы/сессии без Premium, поэтому
-          здесь — практическая аналитика «движения» товара.
+          Поведение каждой карточки на Ozon: продажи, отмены, остатки, позиция в поиске,
+          топ поисковых запросов, Ozon-грейд. Поисковая воронка (Premium) показывает
+          <b> только данные из поиска</b> — рекомендательные полки и прямой трафик
+          в неё не входят (Ozon API не отдаёт сейчас эти метрики никому, депрекейтили).
         </p>
       </header>
 
@@ -418,7 +418,7 @@ export function OzonTraffic() {
           {filtered && filtered.length > 0 ? (
             <div className="card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-[12px] min-w-[1280px]">
+                <table className="w-full text-[12px] min-w-[1380px]">
                   <thead className="bg-surface-alt border-b border-line text-ink-muted">
                     <tr>
                       <Th>Артикул</Th>
@@ -429,9 +429,10 @@ export function OzonTraffic() {
                       <Th align="right">% отмен</Th>
                       {data.has_premium_data && (
                         <>
-                          <Th align="right" title="Уникальные пользователи, которым показалась карточка в поиске (Premium API, дедуп 1 раз в день)">Уник. в поиске</Th>
-                          <Th align="right" title="Средняя позиция по топ-10 запросов твоего товара (Premium API). Меньше — выше в выдаче. Зелёная стрелка = поднялась к топу.">Позиция</Th>
-                          <Th align="right" title="CTR (наш расчёт) = открыли карточку / увидели в поиске">CTR</Th>
+                          <Th align="right" title="Поисковый спрос (Premium API): уник. пользователей искавших по запросам, где карточка попадает в выдачу. Не равно «увидели карточку» — большинство могло не доскроллить.">Спрос</Th>
+                          <Th align="right" title="Средняя позиция по топ-10 запросов товара (Premium API). Меньше — выше в выдаче. Зелёная стрелка = поднялась к топу.">Позиция</Th>
+                          <Th align="right" title="Доля поиска, дошедшая до карточки = view_users / search_users. Не классический CTR, т.к. большинство search_users могли карточку не увидеть.">Поиск→PDP</Th>
+                          <Th align="center" title="Грейд карточки от Ozon (IDC, оборачиваемость). Зелёный — здоровая, красный — проблема.">Грейд</Th>
                         </>
                       )}
                       <Th align="right">Остаток</Th>
@@ -483,12 +484,17 @@ export function OzonTraffic() {
                               </Td>
                               <Td align="right" className={clsx(
                                 "tabular-nums",
-                                // CTR = открыли карточку / увидели в поиске; ниже 5% — слабо
                                 c.search_users && c.view_users != null && (c.view_users / c.search_users) * 100 < 5 && "text-rose-700 dark:text-rose-300 font-medium",
                               )}>
                                 {c.search_users && c.view_users != null
                                   ? `${((c.view_users / c.search_users) * 100).toFixed(1)}%`
                                   : "—"}
+                              </Td>
+                              <Td align="right">
+                                {c.ozon_grade === "green" ? <span title="Зелёный (здоровая карточка)">🟢</span>
+                                  : c.ozon_grade === "yellow" ? <span title="Жёлтый (внимание)">🟡</span>
+                                  : c.ozon_grade === "red" ? <span title="Красный (проблемы)">🔴</span>
+                                  : <span className="text-ink-soft">—</span>}
                               </Td>
                             </>
                           )}
@@ -907,26 +913,39 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
           <Metric label="Посл. продажа" value={card.last_sale || "—"} hint={card.days_since_last_sale !== null ? `${card.days_since_last_sale} дн. назад` : ""} />
         </div>
 
-        {/* Premium-блок */}
+        {/* Поисковая воронка (Premium) */}
         {card.search_users != null && card.premium_history.length > 0 && (
           <div className="mb-4">
             <h3 className="text-[12px] font-semibold uppercase tracking-wider text-ink-muted mb-2 flex items-center gap-1.5">
-              <Eye size={12} /> Трафик на Ozon (Premium)
+              <Search size={12} /> Поисковая воронка (Premium)
               <span className="text-[10px] text-ink-subtle normal-case font-normal">
                 · {card.premium_period}
               </span>
             </h3>
+            <div className="rounded-md bg-amber-50/40 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/40 p-2.5 mb-3 text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
+              <b>⚠️ Только поисковый канал.</b> Не включает показы из рекомендательных полок
+              («с этим покупают», «похожие»), прямой трафик и рекламу. Ozon депрекейтил
+              эти метрики в общем Analytics API — общая воронка карточки не доступна никому.
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-              <Metric label="Уник. в поиске" value={formatNum(card.search_users)} hint="видели карточку, дедуп 1×/день" />
-              <Metric label="Открыли карточку" value={formatNum(card.view_users || 0)} hint="уникальные за период" />
               <Metric
-                label="CTR показ→PDP"
+                label="Поисковый спрос"
+                value={formatNum(card.search_users)}
+                hint="уник. искавших по запросам, где карточка попадает в выдачу"
+              />
+              <Metric
+                label="Дошли до карточки"
+                value={formatNum(card.view_users || 0)}
+                hint="из поиска (без рекомендаций / рекламы)"
+              />
+              <Metric
+                label="Поиск→карточка"
                 value={realCtrPct != null ? `${realCtrPct.toFixed(1)}%` : "—"}
-                hint="наш расчёт = открыли / увидели"
+                hint="доля поисковой аудитории, дошедшей до карточки"
                 warning={realCtrPct != null && realCtrPct < 5}
               />
               <Metric
-                label="Позиция в выдаче"
+                label="Позиция в поиске"
                 value={
                   <>
                     {card.position}
@@ -944,11 +963,88 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
                     )}
                   </>
                 }
-                hint="средняя по топ-10 запросов · меньше = выше в выдаче"
+                hint="средняя по топ-10 запросов · меньше = выше"
                 warning={(card.position_delta ?? 0) <= -10}
               />
             </div>
             <HistoryChart history={card.premium_history} />
+          </div>
+        )}
+
+        {/* Топ поисковых запросов */}
+        {card.top_queries && card.top_queries.length > 0 && (
+          <div className="mb-4">
+            <h3 className="text-[12px] font-semibold uppercase tracking-wider text-ink-muted mb-2 flex items-center gap-1.5">
+              <Target size={12} /> Топ поисковых запросов
+              <span className="text-[10px] text-ink-subtle normal-case font-normal">
+                · по каким словам нас находят
+              </span>
+            </h3>
+            <div className="rounded-md border border-line overflow-hidden">
+              <table className="w-full text-[12px]">
+                <thead className="bg-surface-alt text-ink-muted text-[10px] uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-2.5 py-1.5">Запрос</th>
+                    <th className="text-right px-2.5 py-1.5" title="Позиция в выдаче по этому запросу. Меньше = выше.">Поз.</th>
+                    <th className="text-right px-2.5 py-1.5" title="Уник. пользователей, искавших по этому запросу">Искало</th>
+                    <th className="text-right px-2.5 py-1.5" title="Из них уникальных, дошедших до нашей карточки">Дошли</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {card.top_queries.map((q, i) => (
+                    <tr key={i} className="border-t border-line-soft">
+                      <td className="px-2.5 py-1.5 text-ink">{q.query}</td>
+                      <td className={clsx(
+                        "px-2.5 py-1.5 text-right tabular-nums",
+                        q.position <= 30 ? "text-emerald-700 dark:text-emerald-300 font-medium"
+                          : q.position <= 100 ? "text-amber-700 dark:text-amber-300"
+                          : "text-rose-700 dark:text-rose-300 font-medium",
+                      )}>{q.position}</td>
+                      <td className="px-2.5 py-1.5 text-right tabular-nums text-ink-muted">{formatNum(q.search_users)}</td>
+                      <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(q.view_users)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Ozon-грейд + оборачиваемость */}
+        {(card.ozon_grade || card.turnover_days != null) && (
+          <div className="mb-4 grid grid-cols-2 lg:grid-cols-3 gap-3">
+            {card.ozon_grade && (
+              <Metric
+                label="Грейд Ozon"
+                value={
+                  <span className={clsx(
+                    card.ozon_grade === "green" ? "text-emerald-700 dark:text-emerald-300"
+                      : card.ozon_grade === "yellow" ? "text-amber-700 dark:text-amber-300"
+                      : "text-rose-700 dark:text-rose-300"
+                  )}>
+                    {card.ozon_grade === "green" ? "🟢 Зелёный"
+                      : card.ozon_grade === "yellow" ? "🟡 Жёлтый"
+                      : "🔴 Красный"}
+                  </span>
+                }
+                hint="оценка карточки Ozon (IDC)"
+              />
+            )}
+            {card.turnover_days != null && (
+              <Metric
+                label="Оборачиваемость"
+                value={`${card.turnover_days.toFixed(1)} дн.`}
+                hint="средний срок продажи остатка"
+                warning={card.turnover_days > 60}
+              />
+            )}
+            {card.ads_per_day != null && (
+              <Metric
+                label="Средн. продаж/день"
+                value={card.ads_per_day.toFixed(2)}
+                hint="из API Ozon (ADS)"
+              />
+            )}
           </div>
         )}
 
@@ -1043,13 +1139,13 @@ function Metric({
   );
 }
 
-function Th({ children, align = "left", title }: { children?: React.ReactNode; align?: "left" | "right"; title?: string }) {
+function Th({ children, align = "left", title }: { children?: React.ReactNode; align?: "left" | "right" | "center"; title?: string }) {
   return (
     <th
       title={title}
       className={clsx(
         "px-3 py-2 font-medium text-[10px] uppercase tracking-wider",
-        align === "right" ? "text-right" : "text-left",
+        align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left",
         title && "cursor-help underline decoration-dotted decoration-ink-soft underline-offset-2",
       )}
     >

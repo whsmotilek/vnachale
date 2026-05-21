@@ -176,6 +176,13 @@ export interface OzonPremiumWeek {
   gmv: number;
 }
 
+export interface OzonTopQuery {
+  query: string;
+  position: number;
+  search_users: number;
+  view_users: number;
+}
+
 export interface OzonCard {
   sku: string;
   model: string;
@@ -210,6 +217,12 @@ export interface OzonCard {
   click_conversion_pct: number | null;// CTR показ→PDP (наш расчёт = view_users / search_users * 100)
   premium_period: string | null;
   premium_history: OzonPremiumWeek[];
+  // Топ поисковых запросов (из /v1/analytics/product-queries/details)
+  top_queries: OzonTopQuery[];
+  // Из /v1/analytics/turnover/stocks
+  ozon_grade: "green" | "yellow" | "red" | null;  // IDC грейд карточки
+  turnover_days: number | null;                    // средний срок продажи остатка
+  ads_per_day: number | null;                      // average daily sales
 }
 
 export type ExecSummaryKind = "win" | "urgent" | "warning" | "opportunity" | "info";
