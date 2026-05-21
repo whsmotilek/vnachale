@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { api, ApiError, type Order } from "../api";
+import { api, ApiError, type Order, parseOrderItems } from "../api";
 import { OrdersTable } from "../components/OrdersTable";
 import { OrdersSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
@@ -61,9 +61,31 @@ export function Orders({ readOnly = false }: { readOnly?: boolean }) {
       });
   }, []);
 
+  // Заказы для «обычной» страницы: убираем чисто-предзаказные (видны только в Preorders),
+  // а для смешанных — оставляем только обычные позиции (preorder часть в /preorders).
+  const regularOrders = useMemo(() => {
+    if (!orders) return null;
+    const out: Order[] = [];
+    for (const o of orders) {
+      const items = parseOrderItems(o.items);
+      const regular = items.filter((it) => !it.isPreorder);
+      if (regular.length === 0) continue; // чисто preorder заказ — пропускаем
+      if (regular.length === items.length) {
+        // обычный заказ как есть
+        out.push(o);
+      } else {
+        // mixed — пересобираем items только из обычных позиций + пересчитываем total
+        const regularItemsStr = regular.map((it) => it.raw).join("; ");
+        const regularTotal = regular.reduce((s, it) => s + (it.total || 0), 0);
+        out.push({ ...o, items: regularItemsStr, total: String(regularTotal) });
+      }
+    }
+    return out;
+  }, [orders]);
+
   const filtered = useMemo(
-    () => (orders ? orders.filter((o) => matchesQuery(o, q)) : null),
-    [orders, q],
+    () => (regularOrders ? regularOrders.filter((o) => matchesQuery(o, q)) : null),
+    [regularOrders, q],
   );
 
   function updateOrder(orderId: string, patch: Partial<Order>) {
@@ -76,10 +98,10 @@ export function Orders({ readOnly = false }: { readOnly?: boolean }) {
     <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
       <header className="mb-5 flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Заказы</h1>
-        {filtered && orders && (
+        {filtered && regularOrders && (
           <div className="text-[13px] text-ink-muted tabular-nums">
             {filtered.length}
-            {q && filtered.length !== orders.length ? ` из ${orders.length}` : ""}
+            {q && filtered.length !== regularOrders.length ? ` из ${regularOrders.length}` : ""}
             {(filtered.length === 1 ? " заказ" : " заказов")}
           </div>
         )}
