@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Nav, type Page } from "./components/Nav";
 import { Login } from "./pages/Login";
 import { Orders } from "./pages/Orders";
+import { Preorders } from "./pages/Preorders";
 import { Stock } from "./pages/Stock";
 import { Analytics } from "./pages/Analytics";
 import { Site } from "./pages/Site";
@@ -42,13 +43,13 @@ function decodeJwtPayload(token: string): SessionUser | null {
 // Какие страницы разрешены для каждой роли
 function isPageAllowed(page: Page, role: Role): boolean {
   if (role === "owner") return true;
-  if (role === "fulfillment") return page === "orders" || page === "stock";
-  if (role === "manager") return page === "orders";
+  if (role === "fulfillment") return page === "orders" || page === "preorders" || page === "stock";
+  if (role === "manager") return page === "orders" || page === "preorders";
   return false;
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders", "stock", "analytics", "site", "ozon", "ozon_traffic",
+  "orders", "preorders", "stock", "analytics", "site", "ozon", "ozon_traffic",
 ];
 
 export default function App() {
@@ -159,6 +160,8 @@ export default function App() {
       <main className="flex-1 min-w-0">
         {page === "orders" ? (
           <Orders />
+        ) : page === "preorders" ? (
+          <Preorders />
         ) : page === "stock" && (user.role === "owner" || user.role === "fulfillment") ? (
           <Stock />
         ) : page === "ozon" && user.role === "owner" ? (

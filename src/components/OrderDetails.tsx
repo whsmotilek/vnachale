@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { Check, Copy, Pencil } from "lucide-react";
 import { api, type Order } from "../api";
 import { useCopy } from "../hooks/useCopy";
+import { ItemsList } from "./ItemsList";
 
 function formatRub(value: string | number): string {
   const n =
@@ -156,7 +157,9 @@ export function OrderDetails({
       </Row>
 
       <Row label="Товары" full>
-        <CopyValue fieldKey="items" text={order.items} multiline />
+        <div className="flex-1 min-w-0">
+          <ItemsList items={order.items} />
+        </div>
       </Row>
       <Row label="Сумма">
         <CopyValue fieldKey="total" text={String(order.total)} display={total} mono />

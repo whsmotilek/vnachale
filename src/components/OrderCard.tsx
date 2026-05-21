@@ -1,8 +1,9 @@
 import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
-import type { Order } from "../api";
+import { type Order, orderHasPreorder } from "../api";
 import { StatusSelect } from "./StatusSelect";
 import { OrderDetails } from "./OrderDetails";
+import { ItemsList } from "./ItemsList";
 
 function formatRub(value: string | number): string {
   const n =
@@ -63,8 +64,13 @@ export function OrderCard({
         </header>
 
         {order.items && (
-          <div className="text-[12px] text-ink-muted mb-2 line-clamp-2 leading-snug">
-            {order.items}
+          <div className="mb-2">
+            <ItemsList items={order.items} compact />
+            {orderHasPreorder(order.items) && (
+              <div className="mt-1.5 text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-800/40 rounded px-1.5 py-0.5 inline-block">
+                🆕 в заказе есть предзаказ
+              </div>
+            )}
           </div>
         )}
 

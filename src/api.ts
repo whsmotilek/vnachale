@@ -42,6 +42,61 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+// === утилиты для items ===
+
+export interface OrderItem {
+  raw: string;          // оригинальная строка позиции
+  name: string;         // название без скобок и хвостов
+  sku: string | null;   // артикул если есть (PRE-MSK-..., trousers_grey_m, etc.)
+  size: string | null;  // размер (M, XL, 2XL)
+  qty: number;          // количество
+  price: number;        // цена за штуку
+  total: number;        // общая сумма позиции
+  isPreorder: boolean;  // SKU начинается с PRE-
+}
+
+const _SKU_EXPLICIT_RE = /SKU:\s*([^,)]+)/i;
+const _SKU_TILDA_RE = /\(([A-Za-z][A-Za-z0-9_-]+)(?=\s*,\s*(?:Размер|Size|Цвет))/;
+const _SIZE_RE = /Размер:\s*([^,)]+)/i;
+const _QTY_PRICE_RE = /(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*=\s*(\d+(?:\.\d+)?)/;
+const _QTY_ONLY_RE = /(\d+)\s*x\s*(\d+(?:\.\d+)?)/;
+const _NAME_RE = /^(.+?)(?:\s*\(|$)/;
+
+export function parseOrderItems(itemsStr: string | null | undefined): OrderItem[] {
+  if (!itemsStr) return [];
+  return itemsStr.split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const nameM = _NAME_RE.exec(part);
+      const sizeM = _SIZE_RE.exec(part);
+      const skuExplicit = _SKU_EXPLICIT_RE.exec(part);
+      const skuTilda = _SKU_TILDA_RE.exec(part);
+      const qtyPriceM = _QTY_PRICE_RE.exec(part);
+      const qtyOnlyM = _QTY_ONLY_RE.exec(part);
+      let name = (nameM?.[1] ?? part).trim().replace(/\s+VNACHALE\s*$/i, "").trim();
+      const size = sizeM?.[1]?.trim() ?? null;
+      let sku: string | null = null;
+      if (skuExplicit) {
+        sku = skuExplicit[1].trim();
+      } else if (skuTilda) {
+        const candidate = skuTilda[1].trim();
+        if ((candidate.includes("-") || candidate.includes("_")) && candidate.toLowerCase() !== "размер") {
+          sku = candidate;
+        }
+      }
+      const qty = qtyPriceM ? parseInt(qtyPriceM[1], 10) : qtyOnlyM ? parseInt(qtyOnlyM[1], 10) : 1;
+      const price = qtyPriceM ? parseFloat(qtyPriceM[2]) : qtyOnlyM ? parseFloat(qtyOnlyM[2]) : 0;
+      const total = qtyPriceM ? parseFloat(qtyPriceM[3]) : price * qty;
+      const isPreorder = !!sku && sku.toUpperCase().startsWith("PRE-");
+      return { raw: part, name, sku, size, qty, price, total, isPreorder };
+    });
+}
+
+export function orderHasPreorder(itemsStr: string | null | undefined): boolean {
+  return parseOrderItems(itemsStr).some((it) => it.isPreorder);
+}
+
 // === типы данных ===
 
 export interface Order {
