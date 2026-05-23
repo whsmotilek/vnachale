@@ -463,7 +463,7 @@ export const api = {
     });
   },
   async orders(): Promise<Order[]> {
-    return request("/orders");
+    return request(`/orders?_t=${Date.now()}`);
   },
   async analytics(opts?: {
     period?: string;
@@ -474,8 +474,8 @@ export const api = {
     if (opts?.period) qs.set("period", opts.period);
     if (opts?.from) qs.set("period_from", opts.from);
     if (opts?.to) qs.set("period_to", opts.to);
-    const tail = qs.toString();
-    return request(`/analytics${tail ? "?" + tail : ""}`);
+    qs.set("_t", String(Date.now())); // cache-buster: гарантирует уникальный URL
+    return request(`/analytics?${qs.toString()}`);
   },
   async siteAnalytics(opts?: {
     period?: string;
@@ -488,8 +488,8 @@ export const api = {
     if (opts?.from) qs.set("period_from", opts.from);
     if (opts?.to) qs.set("period_to", opts.to);
     if (opts?.product) qs.set("product", opts.product);
-    const tail = qs.toString();
-    return request(`/site/analytics${tail ? "?" + tail : ""}`);
+    qs.set("_t", String(Date.now()));
+    return request(`/site/analytics?${qs.toString()}`);
   },
   async ozonCards(opts?: {
     period?: string;
@@ -500,8 +500,8 @@ export const api = {
     if (opts?.period) qs.set("period", opts.period);
     if (opts?.from) qs.set("period_from", opts.from);
     if (opts?.to) qs.set("period_to", opts.to);
-    const tail = qs.toString();
-    return request(`/ozon/cards${tail ? "?" + tail : ""}`);
+    qs.set("_t", String(Date.now()));
+    return request(`/ozon/cards?${qs.toString()}`);
   },
   async ozonAnalytics(opts?: {
     period?: string;
@@ -514,8 +514,8 @@ export const api = {
     if (opts?.from) qs.set("period_from", opts.from);
     if (opts?.to) qs.set("period_to", opts.to);
     if (opts?.product) qs.set("product", opts.product);
-    const tail = qs.toString();
-    return request(`/ozon/analytics${tail ? "?" + tail : ""}`);
+    qs.set("_t", String(Date.now()));
+    return request(`/ozon/analytics?${qs.toString()}`);
   },
   async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
     await request(`/orders/${encodeURIComponent(orderId)}/status`, {
