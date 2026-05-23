@@ -160,9 +160,13 @@ export function Site() {
     }
     setLoading(true);
     setError(null);
+    // КРИТИЧНО: при period="custom" передаём period="custom" + from/to.
+    // Раньше при custom передавались только from/to (без period),
+    // и backend подставлял default "month" → возвращал данные за весь месяц
+    // вместо выбранного интервала.
     const opts = {
       ...(period === "custom"
-        ? { from: from || undefined, to: to || undefined }
+        ? { period: "custom", from: from || undefined, to: to || undefined }
         : { period }),
       ...(product ? { product } : {}),
     };

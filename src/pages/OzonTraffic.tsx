@@ -81,9 +81,10 @@ export function OzonTraffic() {
       return;
     }
     setLoading(true);
+    // КРИТИЧНО: period="custom" должен передаваться явно (см. фикс 23.05).
     const opts =
       period === "custom"
-        ? { from: from || undefined, to: to || undefined }
+        ? { period: "custom", from: from || undefined, to: to || undefined }
         : { period };
     api
       .ozonCards(opts)

@@ -60,9 +60,11 @@ export function Analytics() {
       return;
     }
     setLoading(true);
+    // КРИТИЧНО: period="custom" должен передаваться явно, иначе backend
+    // подставит default и проигнорирует from/to (см. фикс 23.05).
     const opts =
       period === "custom"
-        ? { from: from || undefined, to: to || undefined }
+        ? { period: "custom", from: from || undefined, to: to || undefined }
         : { period };
     api
       .analytics(opts)
