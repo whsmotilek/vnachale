@@ -159,20 +159,45 @@ export function Site() {
       return;
     }
     setLoading(true);
+    setError(null);
     const opts = {
       ...(period === "custom"
         ? { from: from || undefined, to: to || undefined }
         : { period }),
       ...(product ? { product } : {}),
     };
+    // Race-condition guard: если пользователь быстро меняет периоды,
+    // эффект захватывает свой собственный "myPeriod" и не пишет результат
+    // если состояние уже изменилось.
+    let cancelled = false;
+    const myPeriod = period;
+    const myFrom = from;
+    const myTo = to;
+    const myProduct = product;
+    console.log("[Site] fetching /site/analytics period=%s from=%s to=%s product=%s",
+                myPeriod, myFrom, myTo, myProduct);
     api
       .siteAnalytics(opts)
       .then((d) => {
+        if (cancelled || myPeriod !== period || myFrom !== from
+            || myTo !== to || myProduct !== product) {
+          console.log("[Site] discarded stale response for period=%s (current=%s)",
+                      myPeriod, period);
+          return;
+        }
+        console.log("[Site] got data period_from=%s period_to=%s visits=%s",
+                    d.period_from, d.period_to, d.visits);
         setData(d);
-        setError(null);
       })
-      .catch(() => setError("Не удалось загрузить аналитику сайта."))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (cancelled) return;
+        console.error("[Site] fetch error:", e);
+        setError("Не удалось загрузить аналитику сайта.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [period, from, to, product]);
 
   const subtitle = (() => {
@@ -247,7 +272,13 @@ export function Site() {
         <StatCardsSkeleton />
       ) : data ? (
         <div className={clsx("transition-opacity", loading && "opacity-60")}>
-          <div className="text-[12px] text-ink-subtle mb-2">Показатели {subtitle}</div>
+          <div className="text-[12px] text-ink-subtle mb-2 flex items-center gap-2">
+            <span>Показатели {subtitle}</span>
+            <span className="text-[10px] text-ink-soft font-mono">
+              [{data.period_from} → {data.period_to}]
+            </span>
+            {loading && <span className="text-[10px] text-brand animate-pulse">обновляется…</span>}
+          </div>
 
           {/* === Hero: реальная выручка с сайта === */}
           <section className="mb-6 animate-fade-in">
