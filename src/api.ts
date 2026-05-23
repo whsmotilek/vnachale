@@ -28,6 +28,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const token = getToken();
   const res = await fetch(`${env.apiBaseUrl}${path}`, {
+    // cache: 'no-store' — иначе браузер может вернуть закэшированный ответ
+    // при смене периода/фильтра (видно было на странице Сайт → Трафик 23.05.2026).
+    // У нас API без Cache-Control headers, и Chrome/Safari могут кэшировать
+    // одинаковые URL даже с разными query params если ETag не выставлен.
+    cache: "no-store",
     ...init,
     headers: {
       "Content-Type": "application/json",
