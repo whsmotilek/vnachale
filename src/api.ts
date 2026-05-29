@@ -161,6 +161,7 @@ export interface AnalyticsResponse {
   delivery_revenue_total: number;
   delivery_margin_total: number;
   ozon_client_fee: number;   // фиксированная плата клиента за Ozon-доставку (₽)
+  ozon_fee_start_date: string;   // ISO дата внедрения платной Ozon-доставки (до неё доход=0)
 }
 
 export interface StockRow {

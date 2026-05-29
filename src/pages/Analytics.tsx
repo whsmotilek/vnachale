@@ -213,7 +213,15 @@ export function Analytics() {
             <StatCard
               label="Доходы с доставки"
               value={formatRub(data.delivery_revenue_total ?? 0)}
-              hint={`Ozon — фикс ${data.ozon_client_fee ?? 350} ₽ / заказ`}
+              hint={(() => {
+                const fee = data.ozon_client_fee ?? 350;
+                const start = data.ozon_fee_start_date || "";
+                if (!start) return `Ozon — фикс ${fee} ₽ / заказ`;
+                // ISO → "DD.MM"
+                const m = start.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                const startShort = m ? `с ${m[3]}.${m[2]}` : "";
+                return `Ozon — фикс ${fee} ₽ / заказ ${startShort}`.trim();
+              })()}
             />
             <StatCard
               label="Расходы на доставку"
