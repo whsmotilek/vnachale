@@ -157,6 +157,10 @@ export interface AnalyticsResponse {
   delivery_cost_total: number;
   delivery_cost_by_method: Record<string, number>;
   delivery_cost_unset_ozon: number;   // сколько Ozon-заказов отгружено без указанной стоимости
+  // Доходы и маржа на доставке: для Ozon — фикс ozon_client_fee×заказов, для остальных — Tilda value
+  delivery_revenue_total: number;
+  delivery_margin_total: number;
+  ozon_client_fee: number;   // фиксированная плата клиента за Ozon-доставку (₽)
 }
 
 export interface StockRow {
