@@ -208,6 +208,19 @@ export function Analytics() {
             />
           </section>
 
+          {/* === Расходы на доставку === */}
+          <section className="grid grid-cols-1 lg:grid-cols-4 gap-3 mt-3">
+            <StatCard
+              label="Расходы на доставку"
+              value={formatRub(data.delivery_cost_total ?? 0)}
+              hint={
+                data.delivery_cost_unset_ozon > 0
+                  ? `у ${data.delivery_cost_unset_ozon} Ozon-заказов не указана`
+                  : "по всем способам доставки"
+              }
+            />
+          </section>
+
           {/* === Конверсия / клиенты / возвраты === */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
             <StatCard

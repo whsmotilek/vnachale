@@ -152,6 +152,11 @@ export interface AnalyticsResponse {
   top_sizes: Array<[string, number]>;
   delivery_methods: Array<[string, number]>;
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
+  // Расходы Vnachale на доставку: для Tilda-доставок попадает из webhook,
+  // для Ozon-доставки заполняется менеджером вручную.
+  delivery_cost_total: number;
+  delivery_cost_by_method: Record<string, number>;
+  delivery_cost_unset_ozon: number;   // сколько Ozon-заказов отгружено без указанной стоимости
 }
 
 export interface StockRow {
