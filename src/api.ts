@@ -125,6 +125,7 @@ export interface Order {
   shipped_at: string;
   delivered_at: string;
   source: string;
+  delivery_price?: string;   // колонка U — фактическая стоимость доставки в рублях (целое); '' если не задана
 }
 
 export interface AnalyticsResponse {
@@ -527,6 +528,12 @@ export const api = {
     await request(`/orders/${encodeURIComponent(orderId)}/track`, {
       method: "PATCH",
       body: JSON.stringify({ track_number: trackNumber }),
+    });
+  },
+  async updateOrderDeliveryPrice(orderId: string, price: number): Promise<void> {
+    await request(`/orders/${encodeURIComponent(orderId)}/delivery_price`, {
+      method: "PATCH",
+      body: JSON.stringify({ delivery_price: price }),
     });
   },
 };

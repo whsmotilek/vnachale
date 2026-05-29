@@ -197,6 +197,31 @@ export function OrderDetails({
           />
         )}
       </Row>
+      {(() => {
+        // Стоимость доставки: для Ozon-заказов поле редактируется вручную
+        // (Tilda присылает 0, реальную цену знает только менеджер склада).
+        // Для других способов доставки — показываем как ридонли (пришло из webhook).
+        const dm = (order.delivery_method || "").toLowerCase();
+        const isOzon = dm === "ozon_pvz" || dm === "ozon";
+        const raw = (order.delivery_price ?? "").trim();
+        const dp = raw ? Number(raw) : null;
+        if (!isOzon && (dp === null || !Number.isFinite(dp))) return null;
+        return (
+          <Row label="Стоимость доставки">
+            {readOnly || !isOzon ? (
+              <span className="text-[13px] text-ink">
+                {dp !== null && Number.isFinite(dp) ? formatRub(dp) : "—"}
+              </span>
+            ) : (
+              <DeliveryPriceEditor
+                orderId={order.order_id}
+                value={raw}
+                onUpdate={(price) => onUpdate?.({ delivery_price: String(price) })}
+              />
+            )}
+          </Row>
+        );
+      })()}
       {order.shipped_at && (
         <Row label="Отгружен">
           <span className="text-[13px] text-ink">{formatDate(order.shipped_at)}</span>
@@ -366,6 +391,141 @@ function TrackEditor({
         className="ml-1 text-ink-soft hover:text-brand transition-colors"
         title="Изменить"
         aria-label="Изменить трек-номер"
+      >
+        <Pencil size={12} />
+      </button>
+    </div>
+  );
+}
+
+function DeliveryPriceEditor({
+  orderId,
+  value,
+  onUpdate,
+}: {
+  orderId: string;
+  value: string;
+  onUpdate: (price: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  async function save() {
+    const trimmed = draft.trim().replace(/\s/g, "").replace(",", ".");
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || num < 0) {
+      setErr("Введите целое неотрицательное число в рублях");
+      return;
+    }
+    if (num > 100000) {
+      setErr("Сумма выглядит подозрительно большой");
+      return;
+    }
+    const intRub = Math.round(num);
+    const currentNum = Number(value || 0);
+    if (intRub === currentNum) {
+      setEditing(false);
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.updateOrderDeliveryPrice(orderId, intRub);
+      onUpdate(intRub);
+      setEditing(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancel() {
+    setDraft(value);
+    setErr(null);
+    setEditing(false);
+  }
+
+  const dp = value ? Number(value) : null;
+  const hasValue = dp !== null && Number.isFinite(dp) && dp > 0;
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="numeric"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancel();
+            }}
+            disabled={busy}
+            placeholder="180"
+            className="text-[13px] w-24 border border-line rounded px-2 py-1 bg-surface text-ink focus:outline-none focus:border-brand transition-colors disabled:opacity-50"
+          />
+          <span className="text-[13px] text-ink-soft">₽</span>
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy}
+            className="px-2.5 py-1 text-[12px] rounded-md bg-brand text-white hover:bg-brand-hover transition-colors disabled:opacity-50 font-medium"
+          >
+            {busy ? "…" : "Сохранить"}
+          </button>
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={busy}
+            className="px-2 py-1 text-[12px] rounded-md border border-line text-ink-muted hover:bg-surface-hover transition-colors"
+          >
+            Отмена
+          </button>
+        </div>
+        {err && (
+          <div className="text-[11px] text-rose-700 dark:text-rose-300">{err}</div>
+        )}
+      </div>
+    );
+  }
+
+  if (!hasValue) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="inline-flex items-center gap-1.5 text-[13px] text-brand hover:text-brand-hover transition-colors"
+      >
+        <Pencil size={12} />
+        Указать стоимость доставки Ozon
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[13px] text-ink">
+        {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(dp!)} ₽
+      </span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="ml-1 text-ink-soft hover:text-brand transition-colors"
+        title="Изменить"
+        aria-label="Изменить стоимость доставки"
       >
         <Pencil size={12} />
       </button>
