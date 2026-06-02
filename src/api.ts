@@ -528,10 +528,14 @@ export const api = {
     qs.set("_t", String(Date.now()));
     return request(`/ozon/analytics?${qs.toString()}`);
   },
-  async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
+  async updateOrderStatus(
+    orderId: string,
+    newStatus: string,
+    notifyCustomer: boolean = false,
+  ): Promise<void> {
     await request(`/orders/${encodeURIComponent(orderId)}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus, notify_customer: notifyCustomer }),
     });
   },
   async updateOrderTrack(orderId: string, trackNumber: string): Promise<void> {

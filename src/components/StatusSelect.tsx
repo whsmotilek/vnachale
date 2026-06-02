@@ -47,6 +47,9 @@ function labelOf(value: string): string {
   return OPTIONS.find((o) => o.value === value)?.label ?? value;
 }
 
+// Для каких статусов есть email-шаблон → показываем галочку «Уведомить клиента»
+const STATUSES_WITH_EMAIL = new Set(["confirmed", "in_pack", "shipped", "delivered", "cancelled", "refunded"]);
+
 export function StatusSelect({
   orderId,
   current,
@@ -58,6 +61,7 @@ export function StatusSelect({
 }) {
   const [value, setValue] = useState(current);
   const [pending, setPending] = useState<string | null>(null);
+  const [notifyCustomer, setNotifyCustomer] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -73,10 +77,13 @@ export function StatusSelect({
     setBusy(true);
     setErr(null);
     try {
-      await api.updateOrderStatus(orderId, next);
+      // notify_customer передаём только если шаблон есть; иначе backend всё равно проигнорирует
+      const notify = notifyCustomer && STATUSES_WITH_EMAIL.has(next);
+      await api.updateOrderStatus(orderId, next, notify);
       setValue(next);
       onChanged(next);
       setPending(null);
+      setNotifyCustomer(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setValue(prev);
@@ -88,6 +95,7 @@ export function StatusSelect({
   function cancel() {
     setPending(null);
     setErr(null);
+    setNotifyCustomer(false);
   }
 
   return (
@@ -129,6 +137,9 @@ export function StatusSelect({
             orderId={orderId}
             busy={busy}
             error={err}
+            showNotifyCheckbox={STATUSES_WITH_EMAIL.has(pending)}
+            notifyCustomer={notifyCustomer}
+            onToggleNotify={setNotifyCustomer}
             onConfirm={confirm}
             onCancel={cancel}
           />,
@@ -144,6 +155,9 @@ function ConfirmModal({
   orderId,
   busy,
   error,
+  showNotifyCheckbox,
+  notifyCustomer,
+  onToggleNotify,
   onConfirm,
   onCancel,
 }: {
@@ -152,6 +166,9 @@ function ConfirmModal({
   orderId: string;
   busy: boolean;
   error: string | null;
+  showNotifyCheckbox: boolean;
+  notifyCustomer: boolean;
+  onToggleNotify: (v: boolean) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -193,6 +210,25 @@ function ConfirmModal({
             {toLabel}
           </span>
         </div>
+
+        {showNotifyCheckbox && (
+          <label className="mt-4 flex items-start gap-2 cursor-pointer select-none group">
+            <input
+              type="checkbox"
+              checked={notifyCustomer}
+              onChange={(e) => onToggleNotify(e.target.checked)}
+              disabled={busy}
+              className="mt-0.5 h-4 w-4 rounded border-line text-brand focus:ring-brand cursor-pointer"
+            />
+            <span className="text-[13px] text-ink leading-snug">
+              📧 Уведомить клиента по email
+              <span className="block text-[11px] text-ink-subtle mt-0.5">
+                Отправит письмо на email из заказа. По умолчанию выключено — чтобы случайно
+                не разослать письма по старым заказам.
+              </span>
+            </span>
+          </label>
+        )}
 
         {error && (
           <div className="mt-3 text-[12px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded p-2">
