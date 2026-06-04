@@ -18,7 +18,12 @@ interface NavItem {
   roles?: Role[];
   /** Какие склады видят пункт (для stock/stock_ff). Опущено — не зависит от склада. */
   warehouses?: Warehouse[];
+  /** Только супер-админ (Матвей) — для контроля. Обычные owner'ы не видят. */
+  adminOnly?: boolean;
 }
+
+// Матвей — исполнитель проекта, видит все страницы для контроля.
+const SUPERADMIN_ID = 1431518498;
 
 interface NavSection {
   id: "site_group" | "select_group";
@@ -41,8 +46,8 @@ const SECTIONS: NavSection[] = [
     label: "Сайт",
     items: [
       { id: "orders_all", label: "Заказы", Icon: LayoutGrid, roles: ["owner"] },
-      { id: "orders", label: "Заказы Склад", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"], warehouses: ["our", "both"] },
-      { id: "preorders", label: "Заказы ФФ", Icon: Sparkles, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"] },
+      { id: "orders", label: "Заказы Склад", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"], warehouses: ["our", "both"], adminOnly: true },
+      { id: "preorders", label: "Заказы ФФ", Icon: Sparkles, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"], adminOnly: true },
       { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["our", "both"] },
       { id: "stock_ff", label: "Склад ФФ", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"] },
       { id: "analytics", label: "Аналитика", Icon: LineChart, roles: ["owner"] },
@@ -59,15 +64,19 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-/** Фильтруем секции по роли + складу, выкидывая пустые секции целиком. */
-function visibleSections(role: Role, warehouse: Warehouse): NavSection[] {
+/** Фильтруем секции по роли + складу, выкидывая пустые секции целиком.
+ * adminOnly прячет пункт у обычных owner'ов (но не у fulfillment/manager,
+ * для которых это рабочая страница). Супер-админ (Матвей) видит всё. */
+function visibleSections(role: Role, warehouse: Warehouse, isAdmin: boolean): NavSection[] {
   const out: NavSection[] = [];
   for (const s of SECTIONS) {
-    const items = s.items.filter(
-      (it) =>
-        (!it.roles || it.roles.includes(role)) &&
-        (!it.warehouses || it.warehouses.includes(warehouse)),
-    );
+    const items = s.items.filter((it) => {
+      if (it.roles && !it.roles.includes(role)) return false;
+      if (it.warehouses && !it.warehouses.includes(warehouse)) return false;
+      // Дубли «Заказы Склад / Заказы ФФ» прячем у owner'а, если он не Матвей.
+      if (it.adminOnly && role === "owner" && !isAdmin) return false;
+      return true;
+    });
     if (items.length > 0) out.push({ ...s, items });
   }
   return out;
@@ -90,13 +99,13 @@ export function Nav({
 }: {
   page: Page;
   setPage: (p: Page) => void;
-  user: { name: string; username?: string; role: Role; warehouse: Warehouse };
+  user: { id: number; name: string; username?: string; role: Role; warehouse: Warehouse };
   onLogout: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const sections = visibleSections(user.role, user.warehouse);
+  const sections = visibleSections(user.role, user.warehouse, user.id === SUPERADMIN_ID);
 
   // Закрытие dropdown по клику снаружи / Esc
   useEffect(() => {

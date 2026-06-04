@@ -102,6 +102,29 @@ export default function App() {
           return;
         }
       }
+      // Telegram Mini App: ВСЕГДА берём свежий токен через initData — права
+      // (роль/склад) могли измениться, кэш в localStorage может быть устаревшим.
+      const tg = getTelegramWebApp();
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+          const { token } = await api.authTelegramWebApp(tg.initData);
+          if (cancelled) return;
+          setToken(token);
+          setUser(decodeJwtPayload(token));
+          setBootstrapping(false);
+          return;
+        } catch (e) {
+          // initData не сработал — пробуем кэш ниже как fallback
+          if (cancelled) return;
+          if (!getToken()) {
+            setBootstrapError(
+              e instanceof ApiError ? `API: ${e.message}` : e instanceof Error ? e.message : String(e),
+            );
+          }
+        }
+      }
       const existing = getToken();
       if (existing) {
         const u = decodeJwtPayload(existing);
@@ -113,22 +136,6 @@ export default function App() {
           return;
         }
         clearToken();
-      }
-      const tg = getTelegramWebApp();
-      if (tg) {
-        try {
-          tg.ready();
-          tg.expand();
-          const { token } = await api.authTelegramWebApp(tg.initData);
-          if (cancelled) return;
-          setToken(token);
-          setUser(decodeJwtPayload(token));
-        } catch (e) {
-          if (cancelled) return;
-          setBootstrapError(
-            e instanceof ApiError ? `API: ${e.message}` : e instanceof Error ? e.message : String(e),
-          );
-        }
       }
       if (!cancelled) setBootstrapping(false);
     })();
@@ -176,7 +183,7 @@ export default function App() {
       <Nav
         page={page}
         setPage={setPage}
-        user={{ name: user.name, username: user.username, role: user.role, warehouse: user.warehouse }}
+        user={{ id: user.id, name: user.name, username: user.username, role: user.role, warehouse: user.warehouse }}
         onLogout={() => {
           clearToken();
           setUser(null);
