@@ -18,6 +18,7 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [showLowOnly, setShowLowOnly] = useState(false);
   const [adjusting, setAdjusting] = useState<StockRow | null>(null);
+  const [transferring, setTransferring] = useState<StockRow | null>(null);
   const title = warehouse === "ff" ? "Склад ФФ" : "Склад";
 
   function load() {
@@ -219,7 +220,12 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
           {/* Мобильные карточки */}
           <div className="lg:hidden flex flex-col gap-2 animate-slide-up-fast">
             {filtered.map((r) => (
-              <StockMobileCard key={r.sku} row={r} onAdjust={() => setAdjusting(r)} />
+              <StockMobileCard
+                key={r.sku}
+                row={r}
+                onAdjust={() => setAdjusting(r)}
+                onTransfer={warehouse === "ff" ? () => setTransferring(r) : undefined}
+              />
             ))}
           </div>
 
@@ -301,13 +307,26 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
                         {r.min_stock || "—"}
                       </Td>
                       <Td align="right">
-                        <button
-                          type="button"
-                          onClick={() => setAdjusting(r)}
-                          className="px-2 py-1 text-[11px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
-                        >
-                          Изменить
-                        </button>
+                        <div className="inline-flex gap-1.5">
+                          {warehouse === "ff" && (
+                            <button
+                              type="button"
+                              onClick={() => setTransferring(r)}
+                              disabled={r.available <= 0}
+                              title="Переместить на наш склад (Tani)"
+                              className="px-2 py-1 text-[11px] rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              → Склад
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setAdjusting(r)}
+                            className="px-2 py-1 text-[11px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
+                          >
+                            Изменить
+                          </button>
+                        </div>
                       </Td>
                     </tr>
                   );
@@ -343,11 +362,40 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
           />,
           document.body,
         )}
+
+      {transferring &&
+        createPortal(
+          <TransferModal
+            row={transferring}
+            onClose={() => setTransferring(null)}
+            onApplied={(sku, ffNewStock) => {
+              setRows((prev) =>
+                prev
+                  ? prev.map((it) =>
+                      it.sku === sku
+                        ? { ...it, stock: ffNewStock, available: ffNewStock - it.reserved }
+                        : it,
+                    )
+                  : prev,
+              );
+              setTransferring(null);
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 }
 
-function StockMobileCard({ row, onAdjust }: { row: StockRow; onAdjust: () => void }) {
+function StockMobileCard({
+  row,
+  onAdjust,
+  onTransfer,
+}: {
+  row: StockRow;
+  onAdjust: () => void;
+  onTransfer?: () => void;
+}) {
   const isLow = row.stock < row.min_stock;
   const isCritical = row.available <= 0;
   return (
@@ -365,13 +413,25 @@ function StockMobileCard({ row, onAdjust }: { row: StockRow; onAdjust: () => voi
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onAdjust}
-          className="shrink-0 px-2.5 py-1 text-[12px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
-        >
-          Изменить
-        </button>
+        <div className="shrink-0 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={onAdjust}
+            className="px-2.5 py-1 text-[12px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
+          >
+            Изменить
+          </button>
+          {onTransfer && (
+            <button
+              type="button"
+              onClick={onTransfer}
+              disabled={row.available <= 0}
+              className="px-2.5 py-1 text-[12px] rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 font-medium transition-colors disabled:opacity-40"
+            >
+              → Склад
+            </button>
+          )}
+        </div>
       </div>
       <div className="mt-2.5 flex items-baseline gap-3 text-[12px]">
         <span
@@ -607,6 +667,136 @@ function AdjustModal({
             className="px-3 py-1.5 text-[13px] rounded-md bg-brand text-white hover:bg-brand-hover disabled:opacity-50 font-medium"
           >
             {busy ? "Применяю…" : "Применить"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Перемещение товара со склада ФФ на наш склад (Tani) — буфер новинок,
+// чтобы mixed-заказы собирались из одного места.
+function TransferModal({
+  row,
+  onClose,
+  onApplied,
+}: {
+  row: StockRow;
+  onClose: () => void;
+  onApplied: (sku: string, ffNewStock: number) => void;
+}) {
+  const [qtyStr, setQtyStr] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [busy, onClose]);
+
+  const qty = Math.max(0, parseInt(qtyStr || "0", 10) || 0);
+  const valid = qty > 0 && qty <= row.available;
+
+  async function apply() {
+    if (!valid) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await api.transferStock(row.sku, qty, {
+        direction: "ff_to_our",
+        reason: reason.trim() || undefined,
+      });
+      onApplied(row.sku, res.src.new_stock);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center px-4 animate-fade-in"
+      onClick={busy ? undefined : onClose}
+    >
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+      <div className="relative w-full max-w-md card p-5 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <header className="mb-3">
+          <h2 className="text-base font-semibold tracking-tightish">Переместить на наш склад</h2>
+          <div className="mt-1 text-[12px] text-ink-muted">
+            <span className="font-mono">{row.sku}</span> · {row.display_model}
+            {row.display_color !== "—" && ` · ${row.display_color}`} · {row.display_size}
+          </div>
+          <div className="mt-2 text-[12px] text-ink-muted">
+            На складе ФФ доступно: <b className="text-ink tabular-nums">{row.available}</b>
+            {" "}→ уйдёт на склад <b className="text-brand-dark dark:text-white">Tani</b>
+          </div>
+        </header>
+
+        <label className="block mb-3">
+          <span className="text-[12px] text-ink-muted mb-1 block">Сколько переместить</span>
+          <input
+            type="number"
+            min="1"
+            max={row.available}
+            value={qtyStr}
+            onChange={(e) => setQtyStr(e.target.value)}
+            placeholder={`до ${row.available}`}
+            autoFocus
+            className="w-full px-3 py-2 rounded-md border border-line bg-surface text-ink text-[14px] focus:outline-none focus:border-brand"
+          />
+        </label>
+
+        <label className="block mb-4">
+          <span className="text-[12px] text-ink-muted mb-1 block">
+            Причина <span className="text-ink-subtle">(необязательно)</span>
+          </span>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="буфер под смешанные заказы"
+            className="w-full px-3 py-2 rounded-md border border-line bg-surface text-ink text-[13px] focus:outline-none focus:border-brand"
+          />
+        </label>
+
+        {qty > 0 && !valid && (
+          <div className="mb-3 text-[12px] text-rose-700 dark:text-rose-300 flex items-center gap-1">
+            <AlertTriangle size={12} /> Нельзя переместить больше доступного ({row.available})
+          </div>
+        )}
+
+        {err && (
+          <div className="mb-3 text-[12px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded p-2">
+            {err}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="px-3 py-1.5 text-[13px] rounded-md border border-line text-ink hover:bg-surface-hover disabled:opacity-50"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            onClick={apply}
+            disabled={!valid || busy}
+            className="px-3 py-1.5 text-[13px] rounded-md bg-brand text-white hover:bg-brand-hover disabled:opacity-50 font-medium"
+          >
+            {busy ? "Перемещаю…" : "Переместить"}
           </button>
         </div>
       </div>
