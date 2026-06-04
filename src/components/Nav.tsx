@@ -23,7 +23,13 @@ interface NavItem {
 }
 
 // Матвей — исполнитель проекта, видит все страницы для контроля.
+// Telegram-аккаунт (по id) + парольный аккаунт (по username "mat").
 const SUPERADMIN_ID = 1431518498;
+const SUPERADMIN_USERNAME = "mat";
+
+function isSuperAdmin(user: { id: number; username?: string }): boolean {
+  return user.id === SUPERADMIN_ID || (user.username || "").toLowerCase() === SUPERADMIN_USERNAME;
+}
 
 interface NavSection {
   id: "site_group" | "select_group";
@@ -105,7 +111,7 @@ export function Nav({
   const [menuOpen, setMenuOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const sections = visibleSections(user.role, user.warehouse, user.id === SUPERADMIN_ID);
+  const sections = visibleSections(user.role, user.warehouse, isSuperAdmin(user));
 
   // Закрытие dropdown по клику снаружи / Esc
   useEffect(() => {
