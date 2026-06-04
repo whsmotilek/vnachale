@@ -6,7 +6,7 @@ import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders" | "preorders" | "stock" | "stock_ff" | "analytics" | "site" | "ozon" | "ozon_traffic";
+type Page = "orders_all" | "orders" | "preorders" | "stock" | "stock_ff" | "analytics" | "site" | "ozon" | "ozon_traffic";
 type Role = "owner" | "manager" | "fulfillment" | "guest";
 type Warehouse = "our" | "ff" | "both";
 
@@ -40,7 +40,8 @@ const SECTIONS: NavSection[] = [
     id: "site_group",
     label: "Сайт",
     items: [
-      { id: "orders", label: "Заказы", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"], warehouses: ["our", "both"] },
+      { id: "orders_all", label: "Заказы", Icon: LayoutGrid, roles: ["owner"] },
+      { id: "orders", label: "Заказы Склад", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"], warehouses: ["our", "both"] },
       { id: "preorders", label: "Заказы ФФ", Icon: Sparkles, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"] },
       { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["our", "both"] },
       { id: "stock_ff", label: "Склад ФФ", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"] },

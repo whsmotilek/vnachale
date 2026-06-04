@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Nav, type Page } from "./components/Nav";
 import { Login } from "./pages/Login";
+import { AllOrders } from "./pages/AllOrders";
 import { Orders } from "./pages/Orders";
 import { Preorders } from "./pages/Preorders";
 import { Stock } from "./pages/Stock";
@@ -70,7 +71,7 @@ function isPageAllowed(page: Page, role: Role, warehouse: Warehouse): boolean {
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders", "preorders", "stock", "stock_ff", "analytics", "site", "ozon", "ozon_traffic",
+  "orders_all", "orders", "preorders", "stock", "stock_ff", "analytics", "site", "ozon", "ozon_traffic",
 ];
 
 export default function App() {
@@ -80,7 +81,8 @@ export default function App() {
   const [page, setPage] = useState<Page>(() => {
     const hash = window.location.hash.replace(/^#\/?/, "") as Page;
     if (VALID_HASHES.includes(hash)) return hash;
-    return "orders";
+    // Дефолт — общая «Заказы» (owner). Не-owner редиректнутся на свою через isPageAllowed.
+    return "orders_all";
   });
 
   useEffect(() => {
@@ -181,7 +183,9 @@ export default function App() {
         }}
       />
       <main className="flex-1 min-w-0">
-        {page === "orders" ? (
+        {page === "orders_all" && user.role === "owner" ? (
+          <AllOrders />
+        ) : page === "orders" ? (
           <Orders />
         ) : page === "preorders" ? (
           <Preorders />

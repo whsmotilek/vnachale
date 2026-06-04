@@ -1,10 +1,27 @@
 import { Fragment, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
-import type { Order } from "../api";
+import { type Order, orderWarehouse } from "../api";
 import { StatusSelect } from "./StatusSelect";
 import { OrderCard } from "./OrderCard";
 import { OrderDetails } from "./OrderDetails";
+
+/** Бейдж склада, к которому относится заказ. Хорошо читается в тёмной теме. */
+export function WarehouseBadge({ items }: { items: string }) {
+  const wh = orderWarehouse(items);
+  if (wh === "ff") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800">
+        ФФ
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border bg-brand-tint text-brand-dark border-brand-tintStrong dark:text-white dark:border-brand">
+      Склад
+    </span>
+  );
+}
 
 function formatRub(value: string | number): string {
   const n =
@@ -38,10 +55,13 @@ export function OrdersTable({
   orders,
   onUpdate,
   readOnly = false,
+  showWarehouseTag = false,
 }: {
   orders: Order[];
   onUpdate: (orderId: string, patch: Partial<Order>) => void;
   readOnly?: boolean;
+  /** Показывать бейдж склада (для общей страницы «Заказы» у owner). */
+  showWarehouseTag?: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -75,6 +95,7 @@ export function OrdersTable({
             onToggle={() => toggleExpand(o.order_id)}
             onUpdate={(patch) => onUpdate(o.order_id, patch)}
             readOnly={readOnly}
+            showWarehouseTag={showWarehouseTag}
           />
         ))}
       </div>
@@ -115,6 +136,11 @@ export function OrdersTable({
                     className={clsx(
                       "border-t border-line cursor-pointer transition-colors",
                       expanded ? "bg-surface-hover" : "hover:bg-surface-hover",
+                      // Цветовая метка слева по складу (только на общей странице)
+                      showWarehouseTag &&
+                        (orderWarehouse(o.items) === "ff"
+                          ? "border-l-2 border-l-amber-400 dark:border-l-amber-500"
+                          : "border-l-2 border-l-brand/50"),
                     )}
                   >
                     <Td className="text-center">
@@ -128,6 +154,11 @@ export function OrdersTable({
                     </Td>
                     <Td>
                       <span className="font-mono text-[12px] text-ink-muted">{o.order_id}</span>
+                      {showWarehouseTag && (
+                        <div className="mt-1">
+                          <WarehouseBadge items={o.items} />
+                        </div>
+                      )}
                     </Td>
                     <Td className="whitespace-nowrap">{formatDate(o.created_at)}</Td>
                     <Td onClick={(e) => e.stopPropagation()}>

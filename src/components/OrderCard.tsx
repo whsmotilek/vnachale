@@ -1,9 +1,10 @@
 import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
-import { type Order } from "../api";
+import { type Order, orderWarehouse } from "../api";
 import { StatusSelect } from "./StatusSelect";
 import { OrderDetails } from "./OrderDetails";
 import { ItemsList } from "./ItemsList";
+import { WarehouseBadge } from "./OrdersTable";
 
 function formatRub(value: string | number): string {
   const n =
@@ -31,12 +32,14 @@ export function OrderCard({
   onToggle,
   onUpdate,
   readOnly = false,
+  showWarehouseTag = false,
 }: {
   order: Order;
   expanded: boolean;
   onToggle: () => void;
   onUpdate?: (patch: Partial<Order>) => void;
   readOnly?: boolean;
+  showWarehouseTag?: boolean;
 }) {
   return (
     <article
@@ -44,12 +47,19 @@ export function OrderCard({
       className={clsx(
         "card overflow-hidden transition-shadow duration-200 cursor-pointer",
         "hover:shadow-cardHover",
+        showWarehouseTag &&
+          (orderWarehouse(order.items) === "ff"
+            ? "border-l-2 border-l-amber-400 dark:border-l-amber-500"
+            : "border-l-2 border-l-brand/50"),
       )}
     >
       <div className="p-3.5">
         <header className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0">
-            <div className="font-mono text-[11px] text-ink-muted">{order.order_id}</div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] text-ink-muted">{order.order_id}</span>
+              {showWarehouseTag && <WarehouseBadge items={order.items} />}
+            </div>
             <div className="text-[14px] text-ink font-medium truncate mt-0.5">
               {order.customer_name || "—"}
             </div>
