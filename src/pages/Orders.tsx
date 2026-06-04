@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { api, ApiError, type Order, parseOrderItems } from "../api";
+import { api, ApiError, type Order, orderWarehouse } from "../api";
 import { OrdersTable } from "../components/OrdersTable";
 import { OrdersSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
@@ -61,26 +61,11 @@ export function Orders({ readOnly = false }: { readOnly?: boolean }) {
       });
   }, []);
 
-  // Заказы для «обычной» страницы: убираем чисто-предзаказные (видны только в Preorders),
-  // а для смешанных — оставляем только обычные позиции (preorder часть в /preorders).
+  // Страница «Заказы» = заказы нашего склада (Tani): чисто-наши + mixed целиком.
+  // Чисто-ФФ заказы (только новые позиции) видны на странице «Заказы ФФ».
   const regularOrders = useMemo(() => {
     if (!orders) return null;
-    const out: Order[] = [];
-    for (const o of orders) {
-      const items = parseOrderItems(o.items);
-      const regular = items.filter((it) => !it.isPreorder);
-      if (regular.length === 0) continue; // чисто preorder заказ — пропускаем
-      if (regular.length === items.length) {
-        // обычный заказ как есть
-        out.push(o);
-      } else {
-        // mixed — пересобираем items только из обычных позиций + пересчитываем total
-        const regularItemsStr = regular.map((it) => it.raw).join("; ");
-        const regularTotal = regular.reduce((s, it) => s + (it.total || 0), 0);
-        out.push({ ...o, items: regularItemsStr, total: String(regularTotal) });
-      }
-    }
-    return out;
+    return orders.filter((o) => orderWarehouse(o.items) === "our");
   }, [orders]);
 
   const filtered = useMemo(

@@ -102,6 +102,32 @@ export function orderHasPreorder(itemsStr: string | null | undefined): boolean {
   return parseOrderItems(itemsStr).some((it) => it.isPreorder);
 }
 
+// === Маршрутизация заказа по складу (синхронно с api/main.py) ===
+// Модели нового поступления физически на складе ФФ (@Efimeno4ka).
+const _FF_MODELS = new Set(["TSHRT", "LONG", "KHS", "KRS", "KRB"]);
+
+export function isFfSku(sku: string | null | undefined): boolean {
+  const s = (sku ?? "").trim();
+  if (!s) return false;
+  if (s.toUpperCase().startsWith("PRE-")) return true;
+  const model = s.split(/[-_]/)[0];
+  return _FF_MODELS.has(model);
+}
+
+/** Склад заказа: 'our' (Tani) или 'ff' (Efimeno4ka). Mixed и наши → 'our'. */
+export function orderWarehouse(itemsStr: string | null | undefined): "our" | "ff" {
+  let hasOur = false;
+  let hasFf = false;
+  for (const it of parseOrderItems(itemsStr)) {
+    if (!it.sku) { hasOur = true; continue; }
+    if (isFfSku(it.sku)) hasFf = true;
+    else hasOur = true;
+  }
+  if (hasOur) return "our";
+  if (hasFf) return "ff";
+  return "our";
+}
+
 // === типы данных ===
 
 export interface Order {

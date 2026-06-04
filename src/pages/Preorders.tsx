@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, X, Sparkles } from "lucide-react";
-import { api, type Order, orderHasPreorder, parseOrderItems } from "../api";
+import { api, type Order, orderWarehouse } from "../api";
 import { OrdersTable } from "../components/OrdersTable";
 import { OrdersSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
@@ -27,12 +27,10 @@ function matchesQuery(o: Order, q: string): boolean {
 }
 
 /**
- * Показывает только заказы с предзаказными позициями (SKU начинается с PRE-).
- * Items внутри каждого заказа фильтруются — видны только предзаказные позиции,
- * остальные скрываются (это видно в OrderDetails через preorderOnly режим).
- *
- * Для этого передаём на OrdersTable модифицированный список заказов: items
- * заменяем на строку только из preorder-позиций, total — сумма preorder-частей.
+ * «Заказы ФФ» — заказы, которые целиком ведёт склад ФФ (@Efimeno4ka):
+ * только новые/предзаказные позиции. Mixed-заказы (новое+старое) сюда НЕ
+ * попадают — они целиком на нашем складе (страница «Заказы»).
+ * Заказ показывается целиком (без обрезки позиций).
  */
 export function Preorders({ readOnly = false }: { readOnly?: boolean }) {
   const [orders, setOrders] = useState<Order[] | null>(null);
@@ -56,23 +54,10 @@ export function Preorders({ readOnly = false }: { readOnly?: boolean }) {
       });
   }, []);
 
-  // Фильтр: только заказы с PRE-* позициями
+  // Фильтр: только заказы склада ФФ (целиком предзаказные)
   const preorderOrders = useMemo(() => {
     if (!orders) return null;
-    return orders
-      .filter((o) => orderHasPreorder(o.items))
-      .map((o) => {
-        // Заменяем items на строку только из preorder-позиций
-        const items = parseOrderItems(o.items);
-        const preItems = items.filter((it) => it.isPreorder);
-        const preItemsStr = preItems.map((it) => it.raw).join("; ");
-        const preTotal = preItems.reduce((s, it) => s + (it.total || 0), 0);
-        return {
-          ...o,
-          items: preItemsStr,
-          total: String(preTotal),
-        };
-      });
+    return orders.filter((o) => orderWarehouse(o.items) === "ff");
   }, [orders]);
 
   const filtered = useMemo(
@@ -92,12 +77,11 @@ export function Preorders({ readOnly = false }: { readOnly?: boolean }) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tighter2 text-ink flex items-center gap-2">
             <Sparkles size={18} className="text-amber-600 dark:text-amber-400" />
-            Предзаказы
+            Заказы ФФ
           </h1>
           <p className="mt-1 text-[13px] text-ink-muted">
-            Заказы с позициями, артикул которых начинается с <code className="text-[11px] bg-surface-alt px-1 rounded">PRE-</code>.
-            Показаны только предзаказные позиции — обычные товары в заказе не отображаются.
-            Отгружать можно <b>после прибытия товара</b>.
+            Заказы со склада ФФ (новые позиции). Mixed-заказы (новое + старое)
+            ведёт наш склад — они на странице «Заказы».
           </p>
         </div>
         {filtered && preorderOrders && (
@@ -115,7 +99,7 @@ export function Preorders({ readOnly = false }: { readOnly?: boolean }) {
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Поиск: имя, телефон, адрес, артикул PRE-…"
+          placeholder="Поиск: имя, телефон, адрес, артикул…"
           className="w-full pl-9 pr-9 py-2 rounded-lg border border-line bg-surface text-[14px] text-ink placeholder:text-ink-soft focus:outline-none focus:border-brand transition-colors"
         />
         {q && (
@@ -138,12 +122,12 @@ export function Preorders({ readOnly = false }: { readOnly?: boolean }) {
         <div className="card p-10 text-center text-ink-muted">
           <Sparkles size={28} className="mx-auto mb-3 text-amber-500/60" />
           <div className="text-base font-medium text-ink tracking-tightish">
-            {q ? "Ничего не найдено" : "Предзаказов пока нет"}
+            {q ? "Ничего не найдено" : "Заказов ФФ пока нет"}
           </div>
           <div className="mt-1 text-[13px]">
             {q
               ? <>Поиск «<span className="text-ink">{q}</span>» — нет совпадений.</>
-              : <>Заказ становится «предзаказом», если в нём есть артикул вида <code className="text-[11px] bg-surface-alt px-1 rounded">PRE-MSK-BLK-L</code>.</>
+              : <>Сюда попадают заказы, состоящие только из новых позиций (футболки, лонгсливы, новые костюмы).</>
             }
           </div>
         </div>

@@ -57,12 +57,15 @@ function decodeJwtPayload(token: string): SessionUser | null {
 function isPageAllowed(page: Page, role: Role, warehouse: Warehouse): boolean {
   if (role === "owner") return true;
   if (role === "fulfillment") {
-    if (page === "orders" || page === "preorders") return true;
-    if (page === "stock") return warehouse === "our" || warehouse === "both";
-    if (page === "stock_ff") return warehouse === "ff" || warehouse === "both";
+    const our = warehouse === "our" || warehouse === "both";
+    const ff = warehouse === "ff" || warehouse === "both";
+    if (page === "orders") return our;       // наш склад → обычные заказы
+    if (page === "stock") return our;
+    if (page === "preorders") return ff;     // ФФ → «Заказы ФФ»
+    if (page === "stock_ff") return ff;
     return false;
   }
-  if (role === "manager") return page === "orders" || page === "preorders";
+  if (role === "manager") return page === "orders";
   return false;
 }
 
@@ -136,8 +139,8 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     if (!isPageAllowed(page, user.role, user.warehouse)) {
-      // fulfillment со складом ФФ должен попадать сразу на свой склад
-      if (user.role === "fulfillment" && user.warehouse === "ff") setPage("stock_ff");
+      // fulfillment со складом ФФ начинает с «Заказы ФФ», остальные — с «Заказы»
+      if (user.role === "fulfillment" && user.warehouse === "ff") setPage("preorders");
       else setPage("orders");
     }
   }, [user, page]);
