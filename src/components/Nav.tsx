@@ -6,8 +6,9 @@ import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders" | "preorders" | "stock" | "analytics" | "site" | "ozon" | "ozon_traffic";
+type Page = "orders" | "preorders" | "stock" | "stock_ff" | "analytics" | "site" | "ozon" | "ozon_traffic";
 type Role = "owner" | "manager" | "fulfillment" | "guest";
+type Warehouse = "our" | "ff" | "both";
 
 interface NavItem {
   id: Page;
@@ -15,6 +16,8 @@ interface NavItem {
   Icon: typeof LayoutGrid;
   /** Какие роли видят пункт. Если поле опущено — видит owner только. */
   roles?: Role[];
+  /** Какие склады видят пункт (для stock/stock_ff). Опущено — не зависит от склада. */
+  warehouses?: Warehouse[];
 }
 
 interface NavSection {
@@ -39,7 +42,8 @@ const SECTIONS: NavSection[] = [
     items: [
       { id: "orders", label: "Заказы", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"] },
       { id: "preorders", label: "Предзаказы", Icon: Sparkles, roles: ["owner", "manager", "fulfillment"] },
-      { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"] },
+      { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["our", "both"] },
+      { id: "stock_ff", label: "Склад ФФ", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"] },
       { id: "analytics", label: "Аналитика", Icon: LineChart, roles: ["owner"] },
       { id: "site", label: "Трафик", Icon: Globe, roles: ["owner"] },
     ],
@@ -54,11 +58,15 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-/** Фильтруем секции по роли, выкидывая пустые секции целиком. */
-function visibleSections(role: Role): NavSection[] {
+/** Фильтруем секции по роли + складу, выкидывая пустые секции целиком. */
+function visibleSections(role: Role, warehouse: Warehouse): NavSection[] {
   const out: NavSection[] = [];
   for (const s of SECTIONS) {
-    const items = s.items.filter((it) => !it.roles || it.roles.includes(role));
+    const items = s.items.filter(
+      (it) =>
+        (!it.roles || it.roles.includes(role)) &&
+        (!it.warehouses || it.warehouses.includes(warehouse)),
+    );
     if (items.length > 0) out.push({ ...s, items });
   }
   return out;
@@ -81,13 +89,13 @@ export function Nav({
 }: {
   page: Page;
   setPage: (p: Page) => void;
-  user: { name: string; username?: string; role: Role };
+  user: { name: string; username?: string; role: Role; warehouse: Warehouse };
   onLogout: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const sections = visibleSections(user.role);
+  const sections = visibleSections(user.role, user.warehouse);
 
   // Закрытие dropdown по клику снаружи / Esc
   useEffect(() => {

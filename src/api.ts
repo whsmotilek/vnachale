@@ -431,14 +431,15 @@ export const api = {
       body: JSON.stringify({ username, password }),
     });
   },
-  async stock(): Promise<StockRow[]> {
-    return request("/stock");
+  async stock(warehouse?: "our" | "ff"): Promise<StockRow[]> {
+    return request(`/stock${warehouse ? `?warehouse=${warehouse}` : ""}`);
   },
-  async downloadStockCsv(): Promise<void> {
+  async downloadStockCsv(warehouse?: "our" | "ff"): Promise<void> {
     // Качаем CSV blob с auth-заголовком и триггерим скачивание.
     if (!env.apiBaseUrl) throw new ApiError(0, "API недоступен");
     const token = getToken();
-    const res = await fetch(`${env.apiBaseUrl}/stock/export.csv`, {
+    const qs = warehouse ? `?warehouse=${warehouse}` : "";
+    const res = await fetch(`${env.apiBaseUrl}/stock/export.csv${qs}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
@@ -461,15 +462,31 @@ export const api = {
   async adjustStock(
     sku: string,
     delta: number,
-    opts?: { reason?: string; expectedStock?: number },
+    opts?: { reason?: string; expectedStock?: number; warehouse?: "our" | "ff" },
   ): Promise<StockAdjustResult> {
-    return request("/stock/adjust", {
+    const qs = opts?.warehouse ? `?warehouse=${opts.warehouse}` : "";
+    return request(`/stock/adjust${qs}`, {
       method: "POST",
       body: JSON.stringify({
         sku,
         delta,
         reason: opts?.reason,
         expected_stock: opts?.expectedStock,
+      }),
+    });
+  },
+  async transferStock(
+    sku: string,
+    qty: number,
+    opts?: { direction?: "ff_to_our" | "our_to_ff"; reason?: string },
+  ): Promise<{ status: string; sku: string; qty: number; src: { sheet: string; new_stock: number }; dst: { sheet: string; new_stock: number } }> {
+    return request("/stock/transfer", {
+      method: "POST",
+      body: JSON.stringify({
+        sku,
+        qty,
+        direction: opts?.direction ?? "ff_to_our",
+        reason: opts?.reason,
       }),
     });
   },

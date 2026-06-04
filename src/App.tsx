@@ -12,12 +12,14 @@ import { api, ApiError, clearToken, getToken, setToken } from "./api";
 import { getTelegramWebApp } from "./telegram";
 
 export type Role = "owner" | "manager" | "fulfillment" | "guest";
+export type Warehouse = "our" | "ff" | "both";
 
 interface SessionUser {
   id: number;
   name: string;
   username?: string;
   role: Role;
+  warehouse: Warehouse;
 }
 
 function decodeJwtPayload(token: string): SessionUser | null {
@@ -28,28 +30,44 @@ function decodeJwtPayload(token: string): SessionUser | null {
     if (json.exp && json.exp < Math.floor(Date.now() / 1000)) return null;
     if (typeof json.id !== "number") return null;
     const role = (typeof json.role === "string" ? json.role : "owner").toLowerCase() as Role;
+    const safeRole: Role =
+      role === "owner" || role === "manager" || role === "fulfillment" ? role : "owner";
+    const wh = (typeof json.warehouse === "string" ? json.warehouse : "").toLowerCase();
+    const warehouse: Warehouse =
+      wh === "our" || wh === "ff" || wh === "both"
+        ? (wh as Warehouse)
+        // Backward-compat: старые JWT без warehouse — owner видит оба, иначе наш склад
+        : safeRole === "owner"
+          ? "both"
+          : "our";
     return {
       id: json.id,
       name: json.name ?? `id${json.id}`,
       username: json.username,
       // Backward-compat: старые JWT без role — считаем owner (раньше доступ был только у них)
-      role: (role === "owner" || role === "manager" || role === "fulfillment") ? role : "owner",
+      role: safeRole,
+      warehouse,
     };
   } catch {
     return null;
   }
 }
 
-// Какие страницы разрешены для каждой роли
-function isPageAllowed(page: Page, role: Role): boolean {
+// Какие страницы разрешены для каждой роли + склада
+function isPageAllowed(page: Page, role: Role, warehouse: Warehouse): boolean {
   if (role === "owner") return true;
-  if (role === "fulfillment") return page === "orders" || page === "preorders" || page === "stock";
+  if (role === "fulfillment") {
+    if (page === "orders" || page === "preorders") return true;
+    if (page === "stock") return warehouse === "our" || warehouse === "both";
+    if (page === "stock_ff") return warehouse === "ff" || warehouse === "both";
+    return false;
+  }
   if (role === "manager") return page === "orders" || page === "preorders";
   return false;
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders", "preorders", "stock", "analytics", "site", "ozon", "ozon_traffic",
+  "orders", "preorders", "stock", "stock_ff", "analytics", "site", "ozon", "ozon_traffic",
 ];
 
 export default function App() {
@@ -117,8 +135,10 @@ export default function App() {
   // Если роль не пускает на текущую страницу — перенаправляем на разрешённую
   useEffect(() => {
     if (!user) return;
-    if (!isPageAllowed(page, user.role)) {
-      setPage("orders");
+    if (!isPageAllowed(page, user.role, user.warehouse)) {
+      // fulfillment со складом ФФ должен попадать сразу на свой склад
+      if (user.role === "fulfillment" && user.warehouse === "ff") setPage("stock_ff");
+      else setPage("orders");
     }
   }, [user, page]);
 
@@ -151,7 +171,7 @@ export default function App() {
       <Nav
         page={page}
         setPage={setPage}
-        user={{ name: user.name, username: user.username, role: user.role }}
+        user={{ name: user.name, username: user.username, role: user.role, warehouse: user.warehouse }}
         onLogout={() => {
           clearToken();
           setUser(null);
@@ -162,8 +182,14 @@ export default function App() {
           <Orders />
         ) : page === "preorders" ? (
           <Preorders />
-        ) : page === "stock" && (user.role === "owner" || user.role === "fulfillment") ? (
-          <Stock />
+        ) : page === "stock" &&
+          (user.role === "owner" ||
+            (user.role === "fulfillment" && (user.warehouse === "our" || user.warehouse === "both"))) ? (
+          <Stock warehouse="our" />
+        ) : page === "stock_ff" &&
+          (user.role === "owner" ||
+            (user.role === "fulfillment" && (user.warehouse === "ff" || user.warehouse === "both"))) ? (
+          <Stock warehouse="ff" />
         ) : page === "ozon" && user.role === "owner" ? (
           <Ozon />
         ) : page === "ozon_traffic" && user.role === "owner" ? (

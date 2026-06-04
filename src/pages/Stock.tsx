@@ -11,13 +11,14 @@ function formatNum(n: number): string {
 
 type SortBy = "name" | "stock" | "available";
 
-export function Stock() {
+export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
   const [rows, setRows] = useState<StockRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [showLowOnly, setShowLowOnly] = useState(false);
   const [adjusting, setAdjusting] = useState<StockRow | null>(null);
+  const title = warehouse === "ff" ? "Склад ФФ" : "Склад";
 
   function load() {
     if (!hasApi) {
@@ -25,8 +26,9 @@ export function Stock() {
       setRows([]);
       return;
     }
+    setRows(null);
     api
-      .stock()
+      .stock(warehouse)
       .then((d) => {
         setRows(d);
         setError(null);
@@ -39,7 +41,8 @@ export function Stock() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warehouse]);
 
   const filtered = useMemo(() => {
     if (!rows) return null;
@@ -96,7 +99,7 @@ export function Stock() {
     setExporting(true);
     setExportErr(null);
     try {
-      await api.downloadStockCsv();
+      await api.downloadStockCsv(warehouse);
     } catch (e) {
       setExportErr(e instanceof ApiError ? e.message : "Не удалось скачать CSV");
     } finally {
@@ -108,7 +111,7 @@ export function Stock() {
     <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
       <header className="mb-5 flex items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Склад</h1>
+          <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">{title}</h1>
           {kpi && (
             <div className="mt-1 text-[13px] text-ink-muted tabular-nums">
               {kpi.totalSku} SKU · {formatNum(kpi.totalUnits)} ед.
@@ -319,6 +322,7 @@ export function Stock() {
         createPortal(
           <AdjustModal
             row={adjusting}
+            warehouse={warehouse}
             onClose={() => setAdjusting(null)}
             onApplied={(updated) => {
               setRows((prev) =>
@@ -402,10 +406,12 @@ function StockMobileCard({ row, onAdjust }: { row: StockRow; onAdjust: () => voi
 
 function AdjustModal({
   row,
+  warehouse,
   onClose,
   onApplied,
 }: {
   row: StockRow;
+  warehouse: "our" | "ff";
   onClose: () => void;
   onApplied: (updated: { sku: string; new_stock: number }) => void;
 }) {
@@ -444,6 +450,7 @@ function AdjustModal({
       const result = await api.adjustStock(row.sku, delta, {
         reason: reason.trim() || undefined,
         expectedStock: row.stock,
+        warehouse,
       });
       onApplied({ sku: result.sku, new_stock: result.new_stock });
     } catch (e) {
