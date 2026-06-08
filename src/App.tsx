@@ -6,6 +6,7 @@ import { Orders } from "./pages/Orders";
 import { Preorders } from "./pages/Preorders";
 import { Stock } from "./pages/Stock";
 import { Analytics } from "./pages/Analytics";
+import { Balance } from "./pages/Balance";
 import { Site } from "./pages/Site";
 import { Ozon } from "./pages/Ozon";
 import { OzonTraffic } from "./pages/OzonTraffic";
@@ -71,7 +72,7 @@ function isPageAllowed(page: Page, role: Role, warehouse: Warehouse): boolean {
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders_all", "orders", "preorders", "stock", "stock_ff", "analytics", "site", "ozon", "ozon_traffic",
+  "orders_all", "orders", "preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic",
 ];
 
 export default function App() {
@@ -212,6 +213,8 @@ export default function App() {
           <Site />
         ) : page === "analytics" && user.role === "owner" ? (
           <Analytics />
+        ) : page === "balance" && user.role === "owner" ? (
+          <Balance />
         ) : (
           <Orders />
         )}

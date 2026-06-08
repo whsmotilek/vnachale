@@ -205,6 +205,22 @@ export interface StockRow {
   display_size: string;
 }
 
+export interface BalanceResponse {
+  total_value: number;
+  total_units: number;
+  warehouses: Array<{ key: string; label: string; units: number; value: number }>;
+  models: Array<{
+    model: string;
+    display: string;
+    color: string;
+    units: number;
+    value: number;
+    frozen: boolean;
+  }>;
+  frozen_value: number;
+  updated_at: string;
+}
+
 export interface StockAdjustResult {
   status: "ok";
   sku: string;
@@ -518,6 +534,9 @@ export const api = {
   },
   async orders(): Promise<Order[]> {
     return request(`/orders?_t=${Date.now()}`);
+  },
+  async inventoryBalance(): Promise<BalanceResponse> {
+    return request(`/inventory/balance?_t=${Date.now()}`);
   },
   async analytics(opts?: {
     period?: string;
