@@ -205,6 +205,41 @@ export interface StockRow {
   display_size: string;
 }
 
+export interface OzonFunnelRow {
+  offer_id: string;
+  sku_ozon: string;
+  name: string;
+  views: number;
+  pdp: number;
+  carts: number;
+  orders: number;
+  revenue: number;
+  cancellations: number;
+  returns: number;
+  ctr: number;
+  conv_cart: number;
+  conv_order: number;
+}
+
+export interface OzonDashboard {
+  period_from: string;
+  period_to: string;
+  kpi: {
+    revenue: number; orders: number; views: number; pdp: number; carts: number;
+    cancellations: number; returns: number;
+    ctr: number; conv_cart: number; conv_order: number;
+    ad_spent: number; ad_orders_money: number; drr: number; drr_ad: number;
+  };
+  articles: Array<OzonFunnelRow & { position: number }>;
+  clusters: Array<{
+    model: string; display: string; color: string;
+    views: number; pdp: number; carts: number; orders: number; revenue: number;
+    cancellations: number; returns: number; skus: number;
+    ctr: number; conv_cart: number; conv_order: number;
+  }>;
+  dynamics: Array<{ date: string; revenue: number; orders: number; spent: number }>;
+}
+
 export interface BalanceResponse {
   total_value: number;
   total_units: number;
@@ -538,6 +573,9 @@ export const api = {
   },
   async inventoryBalance(): Promise<BalanceResponse> {
     return request(`/inventory/balance?_t=${Date.now()}`);
+  },
+  async ozonDashboard(): Promise<OzonDashboard> {
+    return request(`/ozon/dashboard?_t=${Date.now()}`);
   },
   async analytics(opts?: {
     period?: string;

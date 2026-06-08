@@ -1,252 +1,56 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { Filter, X } from "lucide-react";
-import { api, type OzonAnalyticsResponse, type ProductBreakdown } from "../api";
+import { api, ApiError, type OzonDashboard } from "../api";
 import { StatCard } from "../components/StatCard";
 import { StatCardsSkeleton } from "../components/Skeleton";
-import { Sparkline } from "../components/charts/Sparkline";
-import { BarList } from "../components/charts/BarList";
-import { Donut } from "../components/charts/Donut";
 import { hasApi } from "../env";
 
-function formatRub(n: number): string {
+function rub(n: number): string {
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n) + " ₽";
 }
-function formatNum(n: number): string {
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n);
-}
-function formatPct(n: number, fractionDigits = 1): string {
-  return `${n.toFixed(fractionDigits).replace(/\.0$/, "")}%`;
+function num(n: number): string {
+  return new Intl.NumberFormat("ru-RU").format(n);
 }
 
-const OZON_STATUS_LABELS: Record<string, string> = {
-  awaiting_approve: "Ждёт подтверждения",
-  awaiting_packaging: "Ждёт сборки",
-  awaiting_deliver: "Ждёт отгрузки",
-  awaiting_registration: "Ждёт регистрации",
-  delivering: "В доставке",
-  driver_pickup: "У курьера",
-  delivered: "Доставлен",
-  cancelled: "Отменён",
-  not_accepted: "Не принят",
-  arbitration: "Спор",
-  client_arbitration: "Спор клиента",
-  delivering_failed: "Доставка не удалась",
-  sent_by_seller: "Передан в доставку",
-  in_transit: "В пути",
-};
-
-type PeriodKey = "all" | "today" | "week" | "month" | "year" | "custom";
-
-const PRESETS: Array<{ key: PeriodKey; label: string }> = [
-  { key: "all", label: "За всё время" },
-  { key: "today", label: "Сегодня" },
-  { key: "week", label: "Неделя" },
-  { key: "month", label: "Месяц" },
-  { key: "year", label: "Год" },
-  { key: "custom", label: "Период" },
-];
-
-/** Карточка товара с краткой статистикой + клик переключает фильтр */
-function ProductCard({
-  p, active, onClick,
-}: { p: ProductBreakdown; active: boolean; onClick: () => void }) {
-  const topColor = p.colors[0];
-  const topSize = p.sizes[0];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={clsx(
-        "card text-left p-4 transition-all duration-150 hover:-translate-y-px",
-        active ? "ring-2 ring-brand border-brand" : "card-hover",
-      )}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-[14px] font-semibold tracking-tightish">{p.name}</h3>
-        {active && <span className="text-[10px] text-brand uppercase font-medium">выбран</span>}
-      </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums text-brand-dark dark:text-white">
-        {formatRub(p.revenue)}
-      </div>
-      <div className="mt-1 text-[12px] text-ink-muted tabular-nums">
-        {p.orders} зак. · {p.units} ед.
-      </div>
-      {(topColor || topSize) && (
-        <div className="mt-3 flex gap-2 flex-wrap text-[11px]">
-          {topColor && (
-            <span className="px-2 py-0.5 rounded bg-surface text-ink-muted">
-              цвет: <b className="text-ink">{topColor[0]}</b> · {topColor[1]}
-            </span>
-          )}
-          {topSize && (
-            <span className="px-2 py-0.5 rounded bg-surface text-ink-muted">
-              размер: <b className="text-ink">{topSize[0]}</b> · {topSize[1]}
-            </span>
-          )}
-        </div>
-      )}
-    </button>
-  );
-}
+type Tab = "clusters" | "articles";
+type SortKey = "revenue" | "orders" | "views" | "ctr" | "conv_order";
 
 export function Ozon() {
-  const [data, setData] = useState<OzonAnalyticsResponse | null>(null);
+  const [data, setData] = useState<OzonDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<PeriodKey>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [product, setProduct] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<Tab>("clusters");
+  const [sortKey, setSortKey] = useState<SortKey>("revenue");
 
   useEffect(() => {
     if (!hasApi) {
       setError("Сервис временно недоступен.");
       return;
     }
-    setLoading(true);
-    // КРИТИЧНО: period="custom" должен передаваться явно (см. фикс 23.05).
-    const opts = {
-      ...(period === "custom"
-        ? { period: "custom", from: from || undefined, to: to || undefined }
-        : { period }),
-      ...(product ? { product } : {}),
-    };
-    api
-      .ozonAnalytics(opts)
-      .then((d) => {
-        setData(d);
-        setError(null);
-      })
-      .catch(() => setError("Не удалось загрузить аналитику Ozon."))
-      .finally(() => setLoading(false));
-  }, [period, from, to, product]);
+    api.ozonDashboard().then(setData).catch((e) =>
+      setError(e instanceof ApiError ? `Ошибка ${e.status}` : "Не удалось загрузить дашборд."),
+    );
+  }, []);
 
-  const subtitle = (() => {
-    if (!data) return "";
-    if (period === "all") return "за всё время";
-    if (period === "today") return "сегодня";
-    if (period === "week") return "за эту неделю";
-    if (period === "month") return "за этот месяц";
-    if (period === "year") return "за этот год";
-    if (period === "custom") {
-      if (from && to) return `с ${from} по ${to}`;
-      if (from) return `с ${from}`;
-      if (to) return `по ${to}`;
-      return "произвольный период";
-    }
-    return "";
-  })();
+  const rows = useMemo(() => {
+    if (!data) return [];
+    const src = tab === "clusters" ? data.clusters : data.articles;
+    return [...src].sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number));
+  }, [data, tab, sortKey]);
 
-  const filteredProduct = data?.products.find((p) => p.name === product) || null;
+  const maxRev = useMemo(() => (data ? Math.max(...data.dynamics.map((d) => d.revenue), 1) : 1), [data]);
+  const maxSpent = useMemo(() => (data ? Math.max(...data.dynamics.map((d) => d.spent), 1) : 1), [data]);
 
   return (
-    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1280px] animate-slide-up">
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Селект · Аналитика</h1>
-        <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
-          Маркетплейс Ozon. Данные обновляются раз в час. Выручка считается без отменённых отправлений.
+        <p className="mt-1 text-[13px] text-ink-muted">
+          Сквозная воронка Ozon + реклама за 30 дней.
+          {data?.period_from && (
+            <span className="text-ink-subtle"> {data.period_from} — {data.period_to}</span>
+          )}
         </p>
       </header>
-
-      {/* === Hero выручка === */}
-      {data && !product && (
-        <section className="mb-6 animate-fade-in">
-          <div className="card relative overflow-hidden">
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  "radial-gradient(800px 240px at 0% 0%, rgba(26,0,136,0.08), transparent 60%)",
-              }}
-            />
-            <div className="relative p-5 lg:p-7">
-              <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium">
-                Общая выручка Ozon за всё время
-              </div>
-              <div className="mt-2 text-4xl lg:text-5xl font-semibold tracking-tighter2 tabular-nums text-brand-dark dark:text-white">
-                {formatRub(data.lifetime_revenue)}
-              </div>
-              <div className="mt-2 text-[13px] text-ink-muted">
-                {data.lifetime_postings} оплаченных отправлений
-                {data.lifetime_postings > 0 &&
-                  ` · средний чек ${formatRub(Math.round(data.lifetime_revenue / data.lifetime_postings))}`}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* === Период + селектор товара === */}
-      <section className="mb-5 animate-fade-in flex flex-col gap-3">
-        <div className="flex flex-wrap gap-1.5 items-center">
-          {PRESETS.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setPeriod(key)}
-              className={clsx(
-                "px-3 py-1.5 text-[12px] rounded-md border transition-colors",
-                period === key
-                  ? "bg-brand text-white border-brand"
-                  : "bg-surface border-line text-ink-muted hover:bg-surface-hover hover:text-ink",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {period === "custom" && (
-          <div className="flex flex-wrap gap-2 items-center text-[12px]">
-            <label className="flex items-center gap-1.5 text-ink-muted">
-              с
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="border border-line rounded px-2 py-1 bg-surface text-ink focus:outline-none focus:border-brand"
-              />
-            </label>
-            <label className="flex items-center gap-1.5 text-ink-muted">
-              по
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="border border-line rounded px-2 py-1 bg-surface text-ink focus:outline-none focus:border-brand"
-              />
-            </label>
-          </div>
-        )}
-
-        {/* Селектор товара */}
-        {data && data.available_products.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Filter size={12} className="text-ink-soft" />
-            <span className="text-[12px] text-ink-muted">Товар:</span>
-            <select
-              value={product || ""}
-              onChange={(e) => setProduct(e.target.value || null)}
-              className="text-[12px] border border-line rounded px-2 py-1 bg-surface text-ink focus:outline-none focus:border-brand"
-            >
-              <option value="">Все товары</option>
-              {data.available_products.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            {product && (
-              <button
-                onClick={() => setProduct(null)}
-                className="text-[11px] text-ink-soft hover:text-ink flex items-center gap-1"
-              >
-                <X size={11} /> сбросить
-              </button>
-            )}
-          </div>
-        )}
-      </section>
 
       {error && (
         <div className="mb-4 text-[13px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
@@ -257,217 +61,162 @@ export function Ozon() {
       {!data && !error ? (
         <StatCardsSkeleton />
       ) : data ? (
-        <div className={clsx("transition-opacity", loading && "opacity-60")}>
-          <div className="text-[12px] text-ink-subtle mb-2">
-            {product ? <span><b>{product}</b> · </span> : null}Показатели {subtitle}
-          </div>
-
-          {/* === Финансы периода === */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard label="Выручка" value={formatRub(data.total_revenue)} hint={`${data.total_postings} отправл.`} />
-            <StatCard label="К выплате" value={formatRub(data.total_payout)} hint="payout от Ozon" />
-            <StatCard
-              label="Комиссия"
-              value={formatRub(Math.abs(data.total_commission))}
-              hint={data.total_revenue > 0 ? `${((Math.abs(data.total_commission) / data.total_revenue) * 100).toFixed(1)}% от выручки` : ""}
-            />
-            <StatCard label="Средний чек" value={formatRub(Math.round(data.aov))} hint="по периоду" />
+        <>
+          {/* KPI — приоритетные показатели */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+            <StatCard label="Выручка" value={rub(data.kpi.revenue)} hint={`${num(data.kpi.orders)} заказов`} accent />
+            <StatCard label="Показы" value={num(data.kpi.views)} hint={`CTR ${data.kpi.ctr}%`} />
+            <StatCard label="Расход рекламы" value={rub(data.kpi.ad_spent)} hint={`ДРР ${data.kpi.drr}%`} />
+            <StatCard label="Отмены / Возвраты" value={`${data.kpi.cancellations} / ${data.kpi.returns}`} hint="за период" />
           </section>
 
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-            <StatCard label="Сегодня" value={formatRub(data.today_revenue)} hint="с 00:00 МСК" />
-            <StatCard label="Неделя" value={formatRub(data.week_revenue)} hint="последние 7 дн." />
-            <StatCard label="Месяц" value={formatRub(data.month_revenue)} hint="с 1-го числа" />
-            <StatCard label="Отмены" value={formatPct(data.cancel_rate * 100)} hint={`${data.cancelled_count} отправл.`} />
+          {/* Воронка конверсии */}
+          <section className="card p-4 lg:p-5 mb-3">
+            <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium mb-3">Воронка конверсии</div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              <FunnelStep label="Показы" value={num(data.kpi.views)} sub="" />
+              <FunnelStep label="Карточка" value={num(data.kpi.pdp)} sub={`CTR ${data.kpi.ctr}%`} />
+              <FunnelStep label="В корзину" value={num(data.kpi.carts)} sub={`${data.kpi.conv_cart}% из карточки`} />
+              <FunnelStep label="Заказы" value={num(data.kpi.orders)} sub={`${data.kpi.conv_order}% из корзины`} accent />
+            </div>
           </section>
 
-          {/* === Дополнительные KPI: возвраты, акции, локальность === */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-            <StatCard
-              label="Возвраты"
-              value={formatNum(data.returns_count || 0)}
-              hint={`${formatRub(data.returns_value || 0)} · только настоящие (ClientReturn)`}
-            />
-            <StatCard
-              label="Через акции"
-              value={`${(data.promotion_share_pct || 0).toFixed(0)}%`}
-              hint={`${formatRub(data.promotion_revenue || 0)} в ${formatNum(data.promotion_postings || 0)} отправл.`}
-            />
-            <StatCard
-              label="Локальные продажи"
-              value={`${(data.local_share_pct || 0).toFixed(0)}%`}
-              hint={`${formatRub(data.local_revenue || 0)} из родного кластера`}
-            />
-            <StatCard
-              label="Премиум-аудитория"
-              value={`${(data.premium_share_pct || 0).toFixed(0)}%`}
-              hint="заказов от Ozon Premium-покупателей"
-            />
-          </section>
-
-          {/* === Динамика выручки === */}
-          <section className="mt-6 animate-slide-up-fast">
-            <Sparkline data={data.daily_revenue} height={180} />
-          </section>
-
-          {/* === Возвраты: причины + кластеры + акции === */}
-          {((data.top_return_reasons?.length || 0) > 0 || (data.cluster_breakdown?.length || 0) > 0) && (
-            <section className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-3 animate-slide-up-fast">
-              {data.top_return_reasons && data.top_return_reasons.length > 0 && (
-                <BarList
-                  title="Топ причин возврата"
-                  variant="neutral"
-                  items={data.top_return_reasons.map(([reason, n]) => ({ label: reason, value: n }))}
-                  unit="шт"
-                />
-              )}
-              {data.cluster_breakdown && data.cluster_breakdown.length > 0 && (
-                <div className="card p-4 lg:col-span-2">
-                  <h3 className="text-[12px] font-semibold uppercase tracking-wider text-ink-muted mb-2">
-                    Кластеры → локальность
-                    <span className="ml-2 text-[10px] text-ink-subtle normal-case font-normal">
-                      высокая локальность = склад рядом с покупателями
-                    </span>
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[12px]">
-                      <thead className="text-ink-muted text-[10px] uppercase tracking-wider border-b border-line">
-                        <tr>
-                          <th className="text-left py-1.5">Кластер</th>
-                          <th className="text-right py-1.5">Выручка</th>
-                          <th className="text-right py-1.5">Заказов</th>
-                          <th className="text-right py-1.5">Локальных</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.cluster_breakdown.slice(0, 10).map((c) => (
-                          <tr key={c.cluster} className="border-t border-line-soft">
-                            <td className="py-1.5 text-ink">{c.cluster}</td>
-                            <td className="py-1.5 text-right tabular-nums">{formatRub(c.revenue)}</td>
-                            <td className="py-1.5 text-right tabular-nums text-ink-muted">{c.orders}</td>
-                            <td className={`py-1.5 text-right tabular-nums font-medium ${
-                              c.local_pct >= 70 ? "text-emerald-700 dark:text-emerald-300"
-                              : c.local_pct >= 50 ? "text-amber-700 dark:text-amber-300"
-                              : "text-rose-700 dark:text-rose-300"
-                            }`}>
-                              {c.local_pct.toFixed(0)}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* === Топ акций === */}
-          {data.top_actions && data.top_actions.length > 0 && (
-            <section className="mt-3 animate-slide-up-fast">
-              <BarList
-                title="Топ акций по выручке"
-                variant="neutral"
-                items={data.top_actions.map((a) => ({ label: a.name, value: a.revenue }))}
-                unit="₽"
-              />
-            </section>
-          )}
-
-          {/* === Если товар выбран — детали === */}
-          {product && filteredProduct && (
-            <>
-              <section className="mt-6 animate-slide-up-fast">
-                <div className="card p-5">
-                  <h2 className="text-base font-semibold tracking-tightish mb-1">{product}</h2>
-                  <div className="text-[12px] text-ink-muted mb-4">
-                    {formatNum(filteredProduct.orders)} заказов · {formatNum(filteredProduct.units)} единиц ·{" "}
-                    {formatRub(filteredProduct.revenue)} выручки
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                    <Donut
-                      title="По цветам"
-                      slices={filteredProduct.colors.map(([n, v]) => ({ label: n, value: v }))}
-                      centerLabel={{
-                        primary: formatNum(filteredProduct.units),
-                        secondary: "единиц",
-                      }}
-                    />
-                    <BarList
-                      title="По размерам"
-                      items={filteredProduct.sizes.map(([s, v]) => ({ label: s, value: v }))}
-                      unit="ед"
-                    />
-                    <BarList
-                      title="Топ городов"
-                      items={(filteredProduct.cities || []).map(([c, v]) => ({ label: c, value: v }))}
-                      unit="зак."
-                      variant="neutral"
-                    />
-                  </div>
-                </div>
-              </section>
-            </>
-          )}
-
-          {/* === Если товар НЕ выбран — все товары рядом === */}
-          {!product && data.products.length > 0 && (
-            <section className="mt-6 animate-slide-up-fast">
-              <div className="mb-3 flex items-baseline justify-between">
-                <h2 className="text-base font-semibold tracking-tightish">Товары — нажмите для подробностей</h2>
-                <span className="text-[11px] text-ink-subtle">
-                  {data.products.length} {data.products.length === 1 ? "позиция" : "позиций"}
+          {/* Динамика выручка + расход */}
+          <section className="card p-4 lg:p-5 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium">Динамика по дням</div>
+              <div className="flex items-center gap-3 text-[11px]">
+                <span className="flex items-center gap-1 text-brand-dark dark:text-white">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-brand inline-block" /> выручка
+                </span>
+                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> реклама
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {data.products.map((p) => (
-                  <ProductCard
-                    key={p.name}
-                    p={p}
-                    active={false}
-                    onClick={() => setProduct(p.name)}
-                  />
+            </div>
+            <div className="flex items-end gap-[3px] h-32">
+              {data.dynamics.map((d) => (
+                <div
+                  key={d.date}
+                  className="flex-1 flex flex-col justify-end gap-[2px] relative"
+                  title={`${d.date}: выручка ${rub(d.revenue)}, реклама ${rub(d.spent)}`}
+                >
+                  <div className="w-full bg-brand/70 rounded-sm" style={{ height: `${(d.revenue / maxRev) * 100}%` }} />
+                  <div className="w-full bg-amber-400/70 rounded-sm" style={{ height: `${(d.spent / maxSpent) * 30}%` }} />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-1.5 text-[10px] text-ink-subtle">
+              <span>{data.dynamics[0]?.date.slice(5)}</span>
+              <span>{data.dynamics[data.dynamics.length - 1]?.date.slice(5)}</span>
+            </div>
+          </section>
+
+          {/* Таблица: склейки / артикулы */}
+          <section>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <div className="flex gap-1.5">
+                {(["clusters", "articles"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={clsx(
+                      "px-3 py-1.5 text-[12px] rounded-md border transition-colors",
+                      tab === t ? "bg-brand text-white border-brand" : "bg-surface border-line text-ink-muted hover:bg-surface-hover",
+                    )}
+                  >
+                    {t === "clusters" ? "По склейкам (модели)" : "По артикулам"}
+                  </button>
                 ))}
               </div>
-            </section>
-          )}
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                className="text-[12px] border border-line rounded-md px-2 py-1.5 bg-surface text-ink focus:outline-none focus:border-brand"
+              >
+                <option value="revenue">Сортировка: выручка</option>
+                <option value="orders">Заказы</option>
+                <option value="views">Показы</option>
+                <option value="ctr">CTR</option>
+                <option value="conv_order">Конверсия в заказ</option>
+              </select>
+            </div>
 
-          {/* === Схема + статусы === */}
-          <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">
-            <Donut
-              title="Схема работы"
-              slices={Object.entries(data.scheme_counts).map(([s, c]) => ({ label: s, value: c }))}
-              centerLabel={{
-                primary: Object.values(data.scheme_counts).reduce((s, n) => s + n, 0).toString(),
-                secondary: "отправл.",
-              }}
-            />
-            <BarList
-              title="Распределение по статусам"
-              variant="neutral"
-              items={Object.entries(data.status_counts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([s, c]) => ({ label: OZON_STATUS_LABELS[s] ?? s, value: c }))}
-            />
+            <div className="card overflow-x-auto">
+              <table className="w-full text-[12px] min-w-[760px]">
+                <thead className="bg-surface-alt border-b border-line text-ink-muted">
+                  <tr>
+                    <Th>{tab === "clusters" ? "Модель" : "Артикул"}</Th>
+                    <Th align="right">Показы</Th>
+                    <Th align="right">Карточка</Th>
+                    <Th align="right">CTR</Th>
+                    <Th align="right">Корзины</Th>
+                    <Th align="right">Заказы</Th>
+                    <Th align="right">Конв.</Th>
+                    <Th align="right">Выручка</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const isCluster = "model" in r;
+                    const key = isCluster ? (r as { model: string }).model : (r as { offer_id: string }).offer_id;
+                    const lowCtr = r.ctr < 0.5 && r.views > 5000;
+                    return (
+                      <tr key={key} className="border-t border-line hover:bg-surface-hover">
+                        <Td>
+                          <div className="text-ink truncate max-w-[260px]">
+                            {isCluster
+                              ? `${(r as { display: string }).display} · ${(r as { color: string }).color}`
+                              : (r as { name: string; offer_id: string }).name || (r as { offer_id: string }).offer_id}
+                          </div>
+                          <div className="text-ink-subtle text-[10px] font-mono">
+                            {isCluster
+                              ? `${(r as { model: string }).model} · ${(r as { skus: number }).skus} SKU`
+                              : (r as { offer_id: string }).offer_id}
+                          </div>
+                        </Td>
+                        <Td align="right" className="tabular-nums">{num(r.views)}</Td>
+                        <Td align="right" className="tabular-nums">{num(r.pdp)}</Td>
+                        <Td align="right" className={clsx("tabular-nums", lowCtr && "text-rose-600 dark:text-rose-400 font-medium")}>
+                          {r.ctr}%
+                        </Td>
+                        <Td align="right" className="tabular-nums">{num(r.carts)}</Td>
+                        <Td align="right" className="tabular-nums font-medium">{num(r.orders)}</Td>
+                        <Td align="right" className="tabular-nums text-ink-muted">{r.conv_order}%</Td>
+                        <Td align="right" className="tabular-nums font-medium">{rub(r.revenue)}</Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-[11px] text-ink-subtle">
+              <span className="text-rose-600 dark:text-rose-400">Красный CTR</span> — много показов, мало кликов: проблема с главным фото или ценой.
+            </p>
           </section>
-
-          {/* === Города и склады отгрузки (по всему срезу) === */}
-          <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">
-            <BarList
-              title="Топ городов"
-              items={data.top_cities.map(([c, v]) => ({ label: c, value: v }))}
-              variant="neutral"
-              unit="зак."
-            />
-            <BarList
-              title="Топ складов Ozon"
-              items={data.top_warehouses.map(([w, v]) => ({ label: w, value: v }))}
-              variant="neutral"
-              unit="зак."
-            />
-          </section>
-        </div>
+        </>
       ) : null}
     </div>
   );
+}
+
+function FunnelStep({ label, value, sub, accent = false }: { label: string; value: string; sub: string; accent?: boolean }) {
+  return (
+    <div className={clsx("rounded-lg p-3 border", accent ? "bg-brand-tint border-brand/30" : "bg-surface-alt border-line")}>
+      <div className="text-[11px] text-ink-muted">{label}</div>
+      <div className="text-lg font-semibold tracking-tight tabular-nums text-ink mt-0.5">{value}</div>
+      {sub && <div className="text-[10px] text-ink-subtle mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function Th({ children, align = "left" }: { children?: React.ReactNode; align?: "left" | "right" }) {
+  return (
+    <th className={clsx("px-3 py-2 font-medium text-[10px] uppercase tracking-wider", align === "right" ? "text-right" : "text-left")}>
+      {children}
+    </th>
+  );
+}
+function Td({ children, align = "left", className = "" }: { children: React.ReactNode; align?: "left" | "right"; className?: string }) {
+  return <td className={clsx("px-3 py-2.5 align-top", align === "right" && "text-right", className)}>{children}</td>;
 }
