@@ -221,6 +221,14 @@ export interface OzonFunnelRow {
   conv_order: number;
 }
 
+export interface OzonCluster {
+  model: string; display: string; color: string;
+  views: number; pdp: number; carts: number; orders: number; revenue: number;
+  cancellations: number; returns: number; skus: number;
+  ctr: number; conv_cart: number; conv_order: number;
+  ad_spent: number; drr: number; net_revenue: number;
+}
+
 export interface OzonDashboard {
   period_from: string;
   period_to: string;
@@ -230,14 +238,21 @@ export interface OzonDashboard {
     ctr: number; conv_cart: number; conv_order: number;
     ad_spent: number; ad_orders_money: number; drr: number; drr_ad: number;
   };
-  articles: Array<OzonFunnelRow & { position: number }>;
-  clusters: Array<{
-    model: string; display: string; color: string;
-    views: number; pdp: number; carts: number; orders: number; revenue: number;
-    cancellations: number; returns: number; skus: number;
-    ctr: number; conv_cart: number; conv_order: number;
-  }>;
+  articles: Array<OzonFunnelRow & { position: number; ad_spent: number; ad_orders: number; drr: number; net_revenue: number }>;
+  clusters: OzonCluster[];
   dynamics: Array<{ date: string; revenue: number; orders: number; spent: number }>;
+  insights: {
+    high_drr: OzonCluster[];
+    low_drr: OzonCluster[];
+    funnel_leak: OzonCluster[];
+    high_cancel: OzonCluster[];
+    zero_orders: OzonCluster[];
+    net_revenue: number;
+  };
+}
+
+export interface OzonTimelinePoint {
+  date: string; revenue: number; orders: number; views: number;
 }
 
 export interface BalanceResponse {
@@ -576,6 +591,9 @@ export const api = {
   },
   async ozonDashboard(): Promise<OzonDashboard> {
     return request(`/ozon/dashboard?_t=${Date.now()}`);
+  },
+  async ozonTimeline(key: string, kind: "cluster" | "article"): Promise<{ daily: OzonTimelinePoint[] }> {
+    return request(`/ozon/timeline?key=${encodeURIComponent(key)}&kind=${kind}&_t=${Date.now()}`);
   },
   async analytics(opts?: {
     period?: string;
