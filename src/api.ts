@@ -219,6 +219,7 @@ export interface BalanceResponse {
   }>;
   frozen_value: number;
   updated_at: string;
+  snapshots: Array<{ date: string; total: number; our: number; ff: number; ozon: number }>;
 }
 
 export interface StockAdjustResult {

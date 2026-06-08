@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Snowflake } from "lucide-react";
+import { Snowflake, TrendingUp, TrendingDown } from "lucide-react";
 import clsx from "clsx";
 import { api, ApiError, type BalanceResponse } from "../api";
 import { StatCard } from "../components/StatCard";
+import { Sparkline } from "../components/charts/Sparkline";
 import { StatCardsSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
 
@@ -109,6 +110,46 @@ export function Balance() {
               </div>
             </section>
           )}
+
+          {/* Динамика капитала */}
+          <section className="mb-6">
+            <div className="text-[12px] text-ink-subtle mb-2 uppercase tracking-wider font-medium">
+              Динамика капитала в товаре
+            </div>
+            {data.snapshots.length >= 2 ? (
+              (() => {
+                const first = data.snapshots[0].total;
+                const last = data.snapshots[data.snapshots.length - 1].total;
+                const delta = last - first;
+                return (
+                  <div className="card p-4">
+                    <div className="flex items-center gap-2 mb-2 text-[13px]">
+                      <span className="text-ink-muted">За период:</span>
+                      <span
+                        className={clsx(
+                          "inline-flex items-center gap-1 font-medium tabular-nums",
+                          delta >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300",
+                        )}
+                      >
+                        {delta >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        {delta >= 0 ? "+" : ""}
+                        {rub(delta)}
+                      </span>
+                    </div>
+                    <Sparkline
+                      data={data.snapshots.map((s) => ({ date: s.date, revenue: s.total, orders: s.total }))}
+                      height={160}
+                    />
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="card p-5 text-center text-[13px] text-ink-muted">
+                📈 График динамики появится со следующего дня — снапшот баланса
+                делается автоматически каждое утро. Сейчас накоплена 1 точка.
+              </div>
+            )}
+          </section>
 
           {/* По моделям */}
           <section>
