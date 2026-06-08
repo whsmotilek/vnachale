@@ -94,15 +94,15 @@ export function Ozon() {
                 </span>
               </div>
             </div>
-            <div className="flex items-end gap-[3px] h-32">
+            <div className="flex gap-[3px] h-32">
               {data.dynamics.map((d) => (
                 <div
                   key={d.date}
-                  className="flex-1 flex flex-col justify-end gap-[2px] relative"
+                  className="flex-1 h-full flex flex-col justify-end gap-[2px] relative"
                   title={`${d.date}: выручка ${rub(d.revenue)}, реклама ${rub(d.spent)}`}
                 >
-                  <div className="w-full bg-brand/70 rounded-sm" style={{ height: `${(d.revenue / maxRev) * 100}%` }} />
-                  <div className="w-full bg-amber-400/70 rounded-sm" style={{ height: `${(d.spent / maxSpent) * 30}%` }} />
+                  <div className="w-full bg-brand/70 rounded-sm min-h-[1px]" style={{ height: `${(d.revenue / maxRev) * 70}%` }} />
+                  <div className="w-full bg-amber-400/70 rounded-sm min-h-[1px]" style={{ height: `${(d.spent / maxSpent) * 25}%` }} />
                 </div>
               ))}
             </div>
