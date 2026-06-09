@@ -22,6 +22,7 @@ interface SessionUser {
   username?: string;
   role: Role;
   warehouse: Warehouse;
+  ozonAccess: boolean;
 }
 
 function decodeJwtPayload(token: string): SessionUser | null {
@@ -49,6 +50,8 @@ function decodeJwtPayload(token: string): SessionUser | null {
       // Backward-compat: старые JWT без role — считаем owner (раньше доступ был только у них)
       role: safeRole,
       warehouse,
+      // Доп.капабилити: доступ к страницам Ozon поверх роли (для fulfillment).
+      ozonAccess: json.ozon === true,
     };
   } catch {
     return null;
@@ -56,10 +59,12 @@ function decodeJwtPayload(token: string): SessionUser | null {
 }
 
 // Какие страницы разрешены для каждой роли + склада
-function isPageAllowed(page: Page, role: Role, warehouse: Warehouse): boolean {
+function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess: boolean): boolean {
   if (role === "owner") return true;
   // Ozon-менеджер: только аналитика и трафик Селекта.
   if (role === "ozon") return page === "ozon" || page === "ozon_traffic";
+  // Доп.капабилити поверх любой роли: доступ к страницам Ozon (для fulfillment).
+  if (ozonAccess && (page === "ozon" || page === "ozon_traffic")) return true;
   if (role === "fulfillment") {
     const our = warehouse === "our" || warehouse === "both";
     const ff = warehouse === "ff" || warehouse === "both";
@@ -150,7 +155,7 @@ export default function App() {
   // Если роль не пускает на текущую страницу — перенаправляем на разрешённую
   useEffect(() => {
     if (!user) return;
-    if (!isPageAllowed(page, user.role, user.warehouse)) {
+    if (!isPageAllowed(page, user.role, user.warehouse, user.ozonAccess)) {
       // ozon-менеджер начинает с аналитики Селекта
       if (user.role === "ozon") setPage("ozon");
       // fulfillment со складом ФФ начинает с «Заказы ФФ», остальные — с «Заказы»
@@ -188,7 +193,7 @@ export default function App() {
       <Nav
         page={page}
         setPage={setPage}
-        user={{ id: user.id, name: user.name, username: user.username, role: user.role, warehouse: user.warehouse }}
+        user={{ id: user.id, name: user.name, username: user.username, role: user.role, warehouse: user.warehouse, ozonAccess: user.ozonAccess }}
         onLogout={() => {
           clearToken();
           setUser(null);
@@ -209,9 +214,9 @@ export default function App() {
           (user.role === "owner" ||
             (user.role === "fulfillment" && (user.warehouse === "ff" || user.warehouse === "both"))) ? (
           <Stock warehouse="ff" />
-        ) : page === "ozon" && (user.role === "owner" || user.role === "ozon") ? (
+        ) : page === "ozon" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
           <Ozon />
-        ) : page === "ozon_traffic" && (user.role === "owner" || user.role === "ozon") ? (
+        ) : page === "ozon_traffic" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
           <OzonTraffic />
         ) : page === "site" && user.role === "owner" ? (
           <Site />

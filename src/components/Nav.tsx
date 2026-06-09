@@ -74,11 +74,15 @@ const SECTIONS: NavSection[] = [
 /** Фильтруем секции по роли + складу, выкидывая пустые секции целиком.
  * adminOnly прячет пункт у обычных owner'ов (но не у fulfillment/manager,
  * для которых это рабочая страница). Супер-админ (Матвей) видит всё. */
-function visibleSections(role: Role, warehouse: Warehouse, isAdmin: boolean): NavSection[] {
+function visibleSections(role: Role, warehouse: Warehouse, isAdmin: boolean, ozonAccess: boolean): NavSection[] {
   const out: NavSection[] = [];
   for (const s of SECTIONS) {
     const items = s.items.filter((it) => {
-      if (it.roles && !it.roles.includes(role)) return false;
+      const isOzonPage = it.id === "ozon" || it.id === "ozon_traffic";
+      if (it.roles && !it.roles.includes(role)) {
+        // Доп.капабилити: страницы Ozon видны при ozonAccess поверх любой роли.
+        if (!(isOzonPage && ozonAccess)) return false;
+      }
       if (it.warehouses && !it.warehouses.includes(warehouse)) return false;
       // Дубли «Заказы Склад / Заказы ФФ» прячем у owner'а, если он не Матвей.
       if (it.adminOnly && role === "owner" && !isAdmin) return false;
@@ -106,13 +110,13 @@ export function Nav({
 }: {
   page: Page;
   setPage: (p: Page) => void;
-  user: { id: number; name: string; username?: string; role: Role; warehouse: Warehouse };
+  user: { id: number; name: string; username?: string; role: Role; warehouse: Warehouse; ozonAccess?: boolean };
   onLogout: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const sections = visibleSections(user.role, user.warehouse, isSuperAdmin(user));
+  const sections = visibleSections(user.role, user.warehouse, isSuperAdmin(user), user.ozonAccess === true);
 
   // Закрытие dropdown по клику снаружи / Esc
   useEffect(() => {
