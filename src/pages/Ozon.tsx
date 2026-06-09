@@ -231,17 +231,44 @@ export function Ozon() {
 function MiniTimeline({ data }: { data: OzonTimelinePoint[] }) {
   const maxRev = Math.max(...data.map((d) => d.revenue), 1);
   return (
-    <div>
-      <div className="text-[11px] text-ink-muted mb-2">Выручка по дням</div>
-      <div className="flex gap-[2px] h-16 items-end">
-        {data.map((d) => (
-          <div key={d.date} className="flex-1 bg-brand/60 rounded-sm min-h-[1px]"
-            style={{ height: `${(d.revenue / maxRev) * 100}%` }}
-            title={`${d.date}: ${rub(d.revenue)} (${d.orders} зак.)`} />
-        ))}
+    <div className="space-y-3">
+      {/* мини-график выручки */}
+      <div>
+        <div className="text-[11px] text-ink-muted mb-1.5">Выручка по дням</div>
+        <div className="flex gap-[2px] h-12 items-end">
+          {data.map((d) => (
+            <div key={d.date} className="flex-1 bg-brand/60 rounded-sm min-h-[1px]"
+              style={{ height: `${(d.revenue / maxRev) * 100}%` }}
+              title={`${d.date}: ${rub(d.revenue)}`} />
+          ))}
+        </div>
       </div>
-      <div className="flex justify-between mt-1 text-[10px] text-ink-subtle">
-        <span>{data[0]?.date.slice(5)}</span><span>{data[data.length - 1]?.date.slice(5)}</span>
+      {/* таблица по дням — показы, посещения, CTR, заказы, выручка, реклама, ДРР */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px] min-w-[640px]">
+          <thead className="text-ink-subtle">
+            <tr>
+              <Th>Дата</Th><Th align="right">Показы</Th><Th align="right">Карточка</Th>
+              <Th align="right">CTR</Th><Th align="right">Заказы</Th><Th align="right">Выручка</Th>
+              <Th align="right">Реклама</Th><Th align="right">Клики р.</Th><Th align="right">ДРР</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.date} className="border-t border-line-soft">
+                <Td>{d.date.slice(5)}</Td>
+                <Td align="right" className="tabular-nums">{num(d.views)}</Td>
+                <Td align="right" className="tabular-nums">{num(d.pdp)}</Td>
+                <Td align="right" className="tabular-nums text-ink-muted">{d.ctr}%</Td>
+                <Td align="right" className="tabular-nums">{d.orders}</Td>
+                <Td align="right" className="tabular-nums font-medium">{rub(d.revenue)}</Td>
+                <Td align="right" className="tabular-nums text-ink-muted">{rub(d.ad_spent)}</Td>
+                <Td align="right" className="tabular-nums text-ink-muted">{num(d.ad_clicks)}</Td>
+                <Td align="right" className={clsx("tabular-nums", d.drr >= 30 ? "text-rose-600 dark:text-rose-400" : "text-ink-muted")}>{d.drr}%</Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

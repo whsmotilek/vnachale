@@ -253,6 +253,7 @@ export interface OzonDashboard {
 
 export interface OzonTimelinePoint {
   date: string; revenue: number; orders: number; views: number;
+  pdp: number; ctr: number; ad_spent: number; ad_clicks: number; drr: number;
 }
 
 export interface BalanceResponse {
