@@ -7,7 +7,7 @@ import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
 type Page = "orders_all" | "orders" | "preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic";
-type Role = "owner" | "manager" | "fulfillment" | "guest";
+type Role = "owner" | "manager" | "fulfillment" | "ozon" | "guest";
 type Warehouse = "our" | "ff" | "both";
 
 interface NavItem {
@@ -65,8 +65,8 @@ const SECTIONS: NavSection[] = [
     id: "select_group",
     label: "Селект",
     items: [
-      { id: "ozon", label: "Аналитика", Icon: Sparkles, roles: ["owner"] },
-      { id: "ozon_traffic", label: "Трафик", Icon: TrendingUp, roles: ["owner"] },
+      { id: "ozon", label: "Аналитика", Icon: Sparkles, roles: ["owner", "ozon"] },
+      { id: "ozon_traffic", label: "Трафик", Icon: TrendingUp, roles: ["owner", "ozon"] },
     ],
   },
 ];

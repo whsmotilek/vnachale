@@ -13,7 +13,7 @@ import { OzonTraffic } from "./pages/OzonTraffic";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
 import { getTelegramWebApp } from "./telegram";
 
-export type Role = "owner" | "manager" | "fulfillment" | "guest";
+export type Role = "owner" | "manager" | "fulfillment" | "ozon" | "guest";
 export type Warehouse = "our" | "ff" | "both";
 
 interface SessionUser {
@@ -33,7 +33,7 @@ function decodeJwtPayload(token: string): SessionUser | null {
     if (typeof json.id !== "number") return null;
     const role = (typeof json.role === "string" ? json.role : "owner").toLowerCase() as Role;
     const safeRole: Role =
-      role === "owner" || role === "manager" || role === "fulfillment" ? role : "owner";
+      role === "owner" || role === "manager" || role === "fulfillment" || role === "ozon" ? role : "owner";
     const wh = (typeof json.warehouse === "string" ? json.warehouse : "").toLowerCase();
     const warehouse: Warehouse =
       wh === "our" || wh === "ff" || wh === "both"
@@ -58,6 +58,8 @@ function decodeJwtPayload(token: string): SessionUser | null {
 // Какие страницы разрешены для каждой роли + склада
 function isPageAllowed(page: Page, role: Role, warehouse: Warehouse): boolean {
   if (role === "owner") return true;
+  // Ozon-менеджер: только аналитика и трафик Селекта.
+  if (role === "ozon") return page === "ozon" || page === "ozon_traffic";
   if (role === "fulfillment") {
     const our = warehouse === "our" || warehouse === "both";
     const ff = warehouse === "ff" || warehouse === "both";
@@ -149,8 +151,10 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     if (!isPageAllowed(page, user.role, user.warehouse)) {
+      // ozon-менеджер начинает с аналитики Селекта
+      if (user.role === "ozon") setPage("ozon");
       // fulfillment со складом ФФ начинает с «Заказы ФФ», остальные — с «Заказы»
-      if (user.role === "fulfillment" && user.warehouse === "ff") setPage("preorders");
+      else if (user.role === "fulfillment" && user.warehouse === "ff") setPage("preorders");
       else setPage("orders");
     }
   }, [user, page]);
@@ -205,9 +209,9 @@ export default function App() {
           (user.role === "owner" ||
             (user.role === "fulfillment" && (user.warehouse === "ff" || user.warehouse === "both"))) ? (
           <Stock warehouse="ff" />
-        ) : page === "ozon" && user.role === "owner" ? (
+        ) : page === "ozon" && (user.role === "owner" || user.role === "ozon") ? (
           <Ozon />
-        ) : page === "ozon_traffic" && user.role === "owner" ? (
+        ) : page === "ozon_traffic" && (user.role === "owner" || user.role === "ozon") ? (
           <OzonTraffic />
         ) : page === "site" && user.role === "owner" ? (
           <Site />
@@ -215,6 +219,8 @@ export default function App() {
           <Analytics />
         ) : page === "balance" && user.role === "owner" ? (
           <Balance />
+        ) : user.role === "ozon" ? (
+          <Ozon />
         ) : (
           <Orders />
         )}
