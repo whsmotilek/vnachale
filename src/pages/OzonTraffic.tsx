@@ -831,7 +831,7 @@ function DetailModal({ card, onClose }: { card: OzonCard; onClose: () => void })
   }
   // Используем НАШ click-conversion (view_users / search_users), а не view_conversion из API
   // (API даёт конверсию в покупку через поиск, а не CTR показ→PDP).
-  const realCtrPct = card.search_users && card.view_users
+  const realCtrPct = card.search_users && card.view_users != null
     ? (card.view_users / card.search_users) * 100
     : null;
   if (card.tags.includes("low_ctr") && realCtrPct != null && card.search_users != null) {

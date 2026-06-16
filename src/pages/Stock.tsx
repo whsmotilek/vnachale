@@ -60,7 +60,9 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
       );
     }
     if (showLowOnly) {
-      r = r.filter((it) => it.stock < it.min_stock);
+      // Низкий остаток по доступному (stock−reserved). Если min_stock не задан
+      // (новинки на ФФ имеют 0) — используем дефолтный порог 3, иначе алерт не сработает.
+      r = r.filter((it) => it.available < (it.min_stock > 0 ? it.min_stock : 3));
     }
     const sorted = [...r];
     if (sortBy === "stock") {
@@ -74,7 +76,7 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
         if (a.display_color !== b.display_color)
           return a.display_color.localeCompare(b.display_color);
         // size order: S, M, L, XL, XXL, XXXL
-        const sizeOrder = ["S", "M", "L", "XL", "XXL", "XXXL"];
+        const sizeOrder = ["S", "M", "L", "XL", "XXL", "XXXL", "4XL", "XXXXL"];
         const ai = sizeOrder.indexOf(a.display_size);
         const bi = sizeOrder.indexOf(b.display_size);
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
@@ -89,7 +91,7 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
     const totalSku = rows.length;
     const totalUnits = rows.reduce((s, r) => s + r.stock, 0);
     const totalReserved = rows.reduce((s, r) => s + r.reserved, 0);
-    const lowCount = rows.filter((r) => r.stock < r.min_stock).length;
+    const lowCount = rows.filter((r) => r.available < (r.min_stock > 0 ? r.min_stock : 3)).length;
     return { totalSku, totalUnits, totalReserved, lowCount };
   }, [rows]);
 
