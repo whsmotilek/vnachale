@@ -267,8 +267,10 @@ export interface OzonDashboard {
 }
 
 export interface OzonTimelinePoint {
-  date: string; revenue: number; orders: number; views: number;
-  pdp: number; ctr: number; ad_spent: number; ad_clicks: number; drr: number;
+  date: string;
+  revenue: number; orders: number; views: number; pdp: number; carts: number;
+  ctr: number; conv_cart: number; conv_order: number; drr: number;
+  ad_spent: number; ad_views: number; ad_clicks: number; ad_orders: number; ad_ctr: number;
 }
 
 export interface BalanceResponse {
@@ -612,8 +614,12 @@ export const api = {
     p.set("_t", String(Date.now()));
     return request(`/ozon/dashboard?${p.toString()}`);
   },
-  async ozonTimeline(key: string, kind: "cluster" | "article"): Promise<{ daily: OzonTimelinePoint[] }> {
-    return request(`/ozon/timeline?key=${encodeURIComponent(key)}&kind=${kind}&_t=${Date.now()}`);
+  async ozonTimeline(key: string, kind: "cluster" | "article", periodFrom?: string, periodTo?: string): Promise<{ daily: OzonTimelinePoint[]; totals: OzonTimelinePoint }> {
+    const p = new URLSearchParams({ key, kind });
+    if (periodFrom) p.set("period_from", periodFrom);
+    if (periodTo) p.set("period_to", periodTo);
+    p.set("_t", String(Date.now()));
+    return request(`/ozon/timeline?${p.toString()}`);
   },
   async analytics(opts?: {
     period?: string;

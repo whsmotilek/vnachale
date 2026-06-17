@@ -38,7 +38,7 @@ export function Ozon() {
   const [tab, setTab] = useState<Tab>("clusters");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [openRow, setOpenRow] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<Record<string, OzonTimelinePoint[]>>({});
+  const [timeline, setTimeline] = useState<Record<string, { daily: OzonTimelinePoint[]; totals: OzonTimelinePoint }>>({});
   // сортировка дневной таблицы
   const [daySort, setDaySort] = useState<{ col: DayCol; dir: 1 | -1 }>({ col: "date", dir: 1 });
 
@@ -54,6 +54,7 @@ export function Ozon() {
   useEffect(() => {
     if (!hasApi) { setError("Сервис временно недоступен."); return; }
     setLoading(true);
+    setTimeline({}); setOpenRow(null);  // сброс кэша раскрытий при смене периода
     api.ozonDashboard(range.from, range.to)
       .then((d) => {
         setData(d);
@@ -89,8 +90,8 @@ export function Ozon() {
     setOpenRow(key);
     if (!timeline[key]) {
       try {
-        const r = await api.ozonTimeline(key, tab === "clusters" ? "cluster" : "article");
-        setTimeline((t) => ({ ...t, [key]: r.daily }));
+        const r = await api.ozonTimeline(key, tab === "clusters" ? "cluster" : "article", range.from, range.to);
+        setTimeline((t) => ({ ...t, [key]: r }));
       } catch { /* ignore */ }
     }
   }
@@ -311,7 +312,7 @@ export function Ozon() {
                         {open && (
                           <tr>
                             <td colSpan={8} className="bg-surface-alt border-t border-line-soft px-4 py-3">
-                              {tl ? <MiniTimeline data={tl} /> : <div className="text-[12px] text-ink-subtle">Загрузка динамики…</div>}
+                              {tl ? <MatrixView data={tl} /> : <div className="text-[12px] text-ink-subtle">Загрузка матрицы…</div>}
                             </td>
                           </tr>
                         )}
@@ -351,46 +352,65 @@ function Kpi({ label, value, hint, accent = false, tone }: {
   );
 }
 
-function MiniTimeline({ data }: { data: OzonTimelinePoint[] }) {
-  const maxRev = Math.max(...data.map((d) => d.revenue), 1);
-  return (
-    <div className="space-y-3">
-      <div>
-        <div className="text-[11px] text-ink-muted mb-1.5">Выручка по дням</div>
-        <div className="flex gap-[2px] h-12 items-end">
-          {data.map((d) => (
-            <div key={d.date} className="flex-1 bg-brand/60 rounded-sm min-h-[1px]"
-              style={{ height: `${(d.revenue / maxRev) * 100}%` }}
-              title={`${d.date}: ${rub(d.revenue)}`} />
+// Строки матрицы: метрика → как отформатировать значение дня/итога.
+const ORG_ROWS: Array<{ label: string; get: (d: OzonTimelinePoint) => string }> = [
+  { label: "Показы", get: (d) => num(d.views) },
+  { label: "Посещения карточки", get: (d) => num(d.pdp) },
+  { label: "CTR карточки", get: (d) => pct(d.ctr) },
+  { label: "Добавлено в корзину", get: (d) => num(d.carts) },
+  { label: "Конв. карточка→корзина", get: (d) => pct(d.conv_cart) },
+  { label: "Заказы, шт", get: (d) => num(d.orders) },
+  { label: "Конв. корзина→заказ", get: (d) => pct(d.conv_order) },
+  { label: "Выручка, ₽", get: (d) => num(d.revenue) },
+  { label: "ДРР общий", get: (d) => pct(d.drr) },
+];
+const AD_ROWS: Array<{ label: string; get: (d: OzonTimelinePoint) => string }> = [
+  { label: "Реклама: показы", get: (d) => num(d.ad_views) },
+  { label: "Реклама: клики", get: (d) => num(d.ad_clicks) },
+  { label: "Реклама: CTR", get: (d) => pct(d.ad_ctr) },
+  { label: "Реклама: заказы, шт", get: (d) => num(d.ad_orders) },
+  { label: "Реклама: расход, ₽", get: (d) => num(d.ad_spent) },
+];
+
+function MatrixView({ data }: { data: { daily: OzonTimelinePoint[]; totals: OzonTimelinePoint } }) {
+  const { daily, totals } = data;
+  if (!daily.length) return <div className="text-[12px] text-ink-subtle">Нет данных за период.</div>;
+
+  const sectionRows = (title: string, rows: typeof ORG_ROWS) => (
+    <Fragment key={title}>
+      <tr className="bg-surface-alt">
+        <td className="px-2 py-1 text-[10px] uppercase tracking-wider text-ink-subtle font-medium sticky left-0 bg-surface-alt"
+          colSpan={daily.length + 2}>{title}</td>
+      </tr>
+      {rows.map((row) => (
+        <tr key={row.label} className="border-t border-line-soft">
+          <td className="px-2 py-1 text-ink whitespace-nowrap sticky left-0 bg-surface">{row.label}</td>
+          <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink bg-surface-alt whitespace-nowrap">{row.get(totals)}</td>
+          {daily.map((d) => (
+            <td key={d.date} className="px-2 py-1 text-right tabular-nums text-ink-muted whitespace-nowrap">{row.get(d)}</td>
           ))}
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px] min-w-[640px]">
-          <thead className="text-ink-subtle">
-            <tr>
-              <Th>Дата</Th><Th align="right">Показы</Th><Th align="right">Карточка</Th>
-              <Th align="right">CTR</Th><Th align="right">Заказы</Th><Th align="right">Выручка</Th>
-              <Th align="right">Реклама</Th><Th align="right">Клики р.</Th><Th align="right">ДРР</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((d) => (
-              <tr key={d.date} className="border-t border-line-soft">
-                <Td>{d.date.slice(5)}</Td>
-                <Td align="right" className="tabular-nums">{num(d.views)}</Td>
-                <Td align="right" className="tabular-nums">{num(d.pdp)}</Td>
-                <Td align="right" className="tabular-nums text-ink-muted">{d.ctr}%</Td>
-                <Td align="right" className="tabular-nums">{d.orders}</Td>
-                <Td align="right" className="tabular-nums font-medium">{rub(d.revenue)}</Td>
-                <Td align="right" className="tabular-nums text-ink-muted">{rub(d.ad_spent)}</Td>
-                <Td align="right" className="tabular-nums text-ink-muted">{num(d.ad_clicks)}</Td>
-                <Td align="right" className={clsx("tabular-nums", d.drr >= 30 ? "text-rose-600 dark:text-rose-400" : "text-ink-muted")}>{d.drr}%</Td>
-              </tr>
+        </tr>
+      ))}
+    </Fragment>
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="text-[11px] border-collapse">
+        <thead>
+          <tr className="text-ink-subtle border-b border-line">
+            <th className="px-2 py-1 text-left sticky left-0 bg-surface-alt z-10">Показатель</th>
+            <th className="px-2 py-1 text-right font-semibold bg-surface-alt">Итого</th>
+            {daily.map((d) => (
+              <th key={d.date} className="px-2 py-1 text-right whitespace-nowrap font-medium">{d.date.slice(5)}</th>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {sectionRows("Общие", ORG_ROWS)}
+          {sectionRows("Реклама", AD_ROWS)}
+        </tbody>
+      </table>
     </div>
   );
 }
