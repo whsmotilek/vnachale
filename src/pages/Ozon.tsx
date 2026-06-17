@@ -262,65 +262,56 @@ export function Ozon() {
               </select>
             </div>
 
-            <div className="card overflow-x-auto">
-              <table className="w-full text-[12px] min-w-[860px]">
-                <thead className="bg-surface-alt border-b border-line text-ink-muted">
-                  <tr>
-                    <Th>{tab === "clusters" ? "Модель" : "Артикул"}</Th>
-                    <Th align="right">Показы</Th>
-                    <Th align="right">CTR</Th>
-                    <Th align="right">Заказы</Th>
-                    <Th align="right">Конв.</Th>
-                    <Th align="right">Выручка</Th>
-                    <Th align="right">Реклама</Th>
-                    <Th align="right">ДРР</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => {
-                    const isCluster = "model" in r;
-                    const tlKey = isCluster ? (r as OzonCluster).model : (r as { sku_ozon: string }).sku_ozon;
-                    const lowCtr = r.ctr < 0.5 && r.views > 5000;
-                    const open = openRow === tlKey;
-                    const tl = timeline[tlKey];
-                    return (
-                      <Fragment key={tlKey}>
-                        <tr onClick={() => toggleRow(tlKey)}
-                          className="border-t border-line hover:bg-surface-hover cursor-pointer">
-                          <Td>
-                            <div className="flex items-center gap-1.5">
-                              <ChevronDown size={12} className={clsx("text-ink-soft transition-transform", open && "rotate-180 text-brand")} />
-                              <div>
-                                <div className="text-ink truncate max-w-[240px]">
-                                  {isCluster ? `${(r as OzonCluster).display} · ${(r as OzonCluster).color}`
-                                    : (r as { name: string; offer_id: string }).name || (r as { offer_id: string }).offer_id}
-                                </div>
-                                <div className="text-ink-subtle text-[10px] font-mono">
-                                  {isCluster ? `${(r as OzonCluster).model} · ${(r as OzonCluster).skus} SKU` : (r as { offer_id: string }).offer_id}
-                                </div>
-                              </div>
-                            </div>
-                          </Td>
-                          <Td align="right" className="tabular-nums">{num(r.views)}</Td>
-                          <Td align="right" className={clsx("tabular-nums", lowCtr && "text-rose-600 dark:text-rose-400 font-medium")}>{r.ctr}%</Td>
-                          <Td align="right" className="tabular-nums font-medium">{num(r.orders)}</Td>
-                          <Td align="right" className="tabular-nums text-ink-muted">{r.conv_order}%</Td>
-                          <Td align="right" className="tabular-nums font-medium">{rub(r.revenue)}</Td>
-                          <Td align="right" className="tabular-nums text-ink-muted">{rub(r.ad_spent)}</Td>
-                          <Td align="right" className={clsx("tabular-nums", drrCls(r.drr))}>{r.drr}%</Td>
-                        </tr>
-                        {open && (
-                          <tr>
-                            <td colSpan={8} className="bg-surface-alt border-t border-line-soft px-4 py-3">
-                              {tl ? <MatrixView data={tl} /> : <div className="text-[12px] text-ink-subtle">Загрузка матрицы…</div>}
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
+            {/* Список на div-сетке: раскрытая матрица получает свой горизонтальный скролл */}
+            <div className="card overflow-hidden text-[12px]">
+              <div className="hidden sm:grid grid-cols-[minmax(150px,2.4fr)_repeat(7,minmax(56px,1fr))] gap-2 px-3 py-2 bg-surface-alt border-b border-line text-ink-muted text-[10px] uppercase tracking-wider">
+                <div>{tab === "clusters" ? "Модель" : "Артикул"}</div>
+                <div className="text-right">Показы</div>
+                <div className="text-right">CTR</div>
+                <div className="text-right">Заказы</div>
+                <div className="text-right">Конв.</div>
+                <div className="text-right">Выручка</div>
+                <div className="text-right">Реклама</div>
+                <div className="text-right">ДРР</div>
+              </div>
+              {rows.map((r) => {
+                const isCluster = "model" in r;
+                const tlKey = isCluster ? (r as OzonCluster).model : (r as { sku_ozon: string }).sku_ozon;
+                const lowCtr = r.ctr < 0.5 && r.views > 5000;
+                const open = openRow === tlKey;
+                const tl = timeline[tlKey];
+                return (
+                  <div key={tlKey} className="border-t border-line first:border-0">
+                    <button onClick={() => toggleRow(tlKey)}
+                      className="w-full grid grid-cols-[minmax(150px,2.4fr)_repeat(7,minmax(56px,1fr))] gap-2 px-3 py-2.5 items-center text-left hover:bg-surface-hover">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <ChevronDown size={12} className={clsx("shrink-0 text-ink-soft transition-transform", open && "rotate-180 text-brand")} />
+                        <div className="min-w-0">
+                          <div className="text-ink truncate">
+                            {isCluster ? `${(r as OzonCluster).display} · ${(r as OzonCluster).color}`
+                              : (r as { name: string; offer_id: string }).name || (r as { offer_id: string }).offer_id}
+                          </div>
+                          <div className="text-ink-subtle text-[10px] font-mono truncate">
+                            {isCluster ? `${(r as OzonCluster).model} · ${(r as OzonCluster).skus} SKU` : (r as { offer_id: string }).offer_id}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right tabular-nums">{num(r.views)}</div>
+                      <div className={clsx("text-right tabular-nums", lowCtr && "text-rose-600 dark:text-rose-400 font-medium")}>{r.ctr}%</div>
+                      <div className="text-right tabular-nums font-medium">{num(r.orders)}</div>
+                      <div className="text-right tabular-nums text-ink-muted">{r.conv_order}%</div>
+                      <div className="text-right tabular-nums font-medium">{rub(r.revenue)}</div>
+                      <div className="text-right tabular-nums text-ink-muted">{rub(r.ad_spent)}</div>
+                      <div className={clsx("text-right tabular-nums", drrCls(r.drr))}>{r.drr}%</div>
+                    </button>
+                    {open && (
+                      <div className="bg-surface-alt border-t border-line-soft px-3 py-3">
+                        {tl ? <MatrixView data={tl} /> : <div className="text-[12px] text-ink-subtle">Загрузка матрицы…</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <p className="mt-2 text-[11px] text-ink-subtle">
               Клик по строке — динамика по дням. <span className="text-rose-600 dark:text-rose-400">Красный CTR/ДРР</span> — проблема; <span className="text-emerald-700 dark:text-emerald-300">зелёный ДРР</span> — реклама окупается.
