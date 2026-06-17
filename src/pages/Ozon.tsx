@@ -1,35 +1,68 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, AlertTriangle, TrendingUp, Flame } from "lucide-react";
-import { api, ApiError, type OzonDashboard, type OzonCluster, type OzonTimelinePoint } from "../api";
-import { StatCard } from "../components/StatCard";
+import { api, ApiError, type OzonDashboard, type OzonCluster, type OzonTimelinePoint, type OzonDailyPoint } from "../api";
 import { StatCardsSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
 
 function rub(n: number): string {
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n) + " ₽";
+  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n || 0) + " ₽";
 }
 function num(n: number): string {
-  return new Intl.NumberFormat("ru-RU").format(n);
+  return new Intl.NumberFormat("ru-RU").format(n || 0);
+}
+function pct(n: number): string {
+  return `${(n ?? 0)}%`;
+}
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 type Tab = "clusters" | "articles";
 type SortKey = "revenue" | "orders" | "views" | "ctr" | "conv_order" | "drr";
+type Preset = "7" | "14" | "30" | "all" | "custom";
+type DayCol = keyof OzonDailyPoint;
 
 export function Ozon() {
   const [data, setData] = useState<OzonDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [preset, setPreset] = useState<Preset>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  // диапазон доступных дат (приходит из ответа, не зависит от фильтра)
+  const [avail, setAvail] = useState<{ from: string; to: string } | null>(null);
+
   const [tab, setTab] = useState<Tab>("clusters");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<Record<string, OzonTimelinePoint[]>>({});
+  // сортировка дневной таблицы
+  const [daySort, setDaySort] = useState<{ col: DayCol; dir: 1 | -1 }>({ col: "date", dir: 1 });
+
+  // Считаем запрашиваемый диапазон из пресета + доступных границ
+  const range = useMemo<{ from?: string; to?: string }>(() => {
+    if (preset === "all") return {};
+    if (preset === "custom") return { from: customFrom || undefined, to: customTo || undefined };
+    if (!avail) return {};
+    const n = Number(preset);
+    return { from: shiftDate(avail.to, -(n - 1)), to: avail.to };
+  }, [preset, customFrom, customTo, avail]);
 
   useEffect(() => {
     if (!hasApi) { setError("Сервис временно недоступен."); return; }
-    api.ozonDashboard().then(setData).catch((e) =>
-      setError(e instanceof ApiError ? `Ошибка ${e.status}` : "Не удалось загрузить дашборд."),
-    );
-  }, []);
+    setLoading(true);
+    api.ozonDashboard(range.from, range.to)
+      .then((d) => {
+        setData(d);
+        if (d.available_from && d.available_to) setAvail({ from: d.available_from, to: d.available_to });
+        setError(null);
+      })
+      .catch((e) => setError(e instanceof ApiError ? `Ошибка ${e.status}` : "Не удалось загрузить дашборд."))
+      .finally(() => setLoading(false));
+  }, [range.from, range.to]);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -37,8 +70,19 @@ export function Ozon() {
     return [...src].sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number));
   }, [data, tab, sortKey]);
 
-  const maxRev = useMemo(() => (data ? Math.max(...data.dynamics.map((d) => d.revenue), 1) : 1), [data]);
-  const maxSpent = useMemo(() => (data ? Math.max(...data.dynamics.map((d) => d.spent), 1) : 1), [data]);
+  const dailySorted = useMemo(() => {
+    if (!data) return [];
+    const { col, dir } = daySort;
+    return [...data.daily].sort((a, b) => {
+      const av = a[col], bv = b[col];
+      if (typeof av === "string" || typeof bv === "string") return String(av).localeCompare(String(bv)) * dir;
+      return ((av as number) - (bv as number)) * dir;
+    });
+  }, [data, daySort]);
+
+  function setDayCol(col: DayCol) {
+    setDaySort((s) => (s.col === col ? { col, dir: (s.dir === 1 ? -1 : 1) } : { col, dir: col === "date" ? 1 : -1 }));
+  }
 
   async function toggleRow(key: string) {
     if (openRow === key) { setOpenRow(null); return; }
@@ -51,15 +95,40 @@ export function Ozon() {
     }
   }
 
+  const k = data?.kpi;
+
   return (
-    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1280px] animate-slide-up">
-      <header className="mb-5">
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1320px] animate-slide-up">
+      <header className="mb-4">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Селект · Аналитика</h1>
         <p className="mt-1 text-[13px] text-ink-muted">
-          Сквозная воронка Ozon + реклама/ДРР за 30 дней.
+          Сквозная воронка Ozon + реклама/ДРР по дням.
           {data?.period_from && <span className="text-ink-subtle"> {data.period_from} — {data.period_to}</span>}
         </p>
       </header>
+
+      {/* Период */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {([["7", "7 дней"], ["14", "14 дней"], ["30", "30 дней"], ["all", "Весь период"], ["custom", "Свой"]] as [Preset, string][]).map(([p, label]) => (
+          <button key={p} onClick={() => setPreset(p)}
+            className={clsx("px-3 py-1.5 text-[12px] rounded-md border transition-colors",
+              preset === p ? "bg-brand text-white border-brand" : "bg-surface border-line text-ink-muted hover:bg-surface-hover")}>
+            {label}
+          </button>
+        ))}
+        {preset === "custom" && (
+          <span className="flex items-center gap-1.5">
+            <input type="date" value={customFrom} min={avail?.from} max={avail?.to}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="text-[12px] border border-line rounded-md px-2 py-1 bg-surface text-ink" />
+            <span className="text-ink-subtle">—</span>
+            <input type="date" value={customTo} min={avail?.from} max={avail?.to}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="text-[12px] border border-line rounded-md px-2 py-1 bg-surface text-ink" />
+          </span>
+        )}
+        {loading && <span className="text-[11px] text-ink-subtle">обновляю…</span>}
+      </div>
 
       {error && (
         <div className="mb-4 text-[13px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">{error}</div>
@@ -67,29 +136,88 @@ export function Ozon() {
 
       {!data && !error ? (
         <StatCardsSkeleton />
-      ) : data ? (
+      ) : data && k ? (
         <>
-          {/* KPI */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-            <StatCard label="Выручка" value={rub(data.kpi.revenue)} hint={`${num(data.kpi.orders)} заказов`} accent />
-            <StatCard label="Чистая выручка" value={rub(data.insights.net_revenue)} hint="выручка − реклама" />
-            <StatCard label="Расход рекламы" value={rub(data.kpi.ad_spent)} hint={`ДРР ${data.kpi.drr}%`} />
-            <StatCard label="Отмены / Возвраты" value={`${data.kpi.cancellations} / ${data.kpi.returns}`} hint="за период" />
+          {/* 12 KPI как в плановой таблице */}
+          <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
+            <Kpi label="Выручка" value={rub(k.revenue)} hint={`${num(k.days)} дн · ср.чек ${rub(k.avg_order)}`} accent />
+            <Kpi label="Заказы" value={num(k.orders)} hint="штук" />
+            <Kpi label="Показы" value={num(k.views)} hint="всего" />
+            <Kpi label="Посещения карточки" value={num(k.pdp)} hint="переходы в карточку" />
+            <Kpi label="CTR карточки" value={pct(k.ctr)} hint="посещения / показы" />
+            <Kpi label="Добавлено в корзину" value={num(k.carts)} hint="всего" />
+            <Kpi label="Конв. карточка→корзина" value={pct(k.conv_cart)} hint="корзины / посещения" />
+            <Kpi label="Конв. корзина→заказ" value={pct(k.conv_order)} hint="заказы / корзины" />
+            <Kpi label="Расход рекламы" value={rub(k.ad_spent)} hint="Ozon Performance" />
+            <Kpi label="ДРР общий" value={pct(k.drr)} hint="расход / выручка"
+              tone={k.drr >= 15 ? "rose" : k.drr > 0 && k.drr < 8 ? "emerald" : undefined} />
+            <Kpi label="Рекламная выручка" value={rub(k.ad_revenue)} hint="атрибут. рекламе*" />
+            <Kpi label="Чистая выручка" value={rub(k.net_revenue)} hint="выручка − реклама" />
           </section>
 
-          {/* Воронка */}
-          <section className="card p-4 lg:p-5 mb-3">
-            <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium mb-3">Воронка конверсии</div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              <FunnelStep label="Показы" value={num(data.kpi.views)} sub="" />
-              <FunnelStep label="Карточка" value={num(data.kpi.pdp)} sub={`CTR ${data.kpi.ctr}%`} />
-              <FunnelStep label="В корзину" value={num(data.kpi.carts)} sub={`${data.kpi.conv_cart}% из карточки`} />
-              <FunnelStep label="Заказы" value={num(data.kpi.orders)} sub={`${data.kpi.conv_order}% из корзины`} accent />
+          {/* ДНЕВНАЯ ТАБЛИЦА — центр страницы */}
+          <section className="mb-5">
+            <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium mb-2">
+              Данные по дням <span className="text-ink-subtle normal-case">(клик по заголовку — сортировка)</span>
             </div>
+            <div className="card overflow-x-auto">
+              <table className="w-full text-[12px] min-w-[960px]">
+                <thead className="bg-surface-alt border-b border-line text-ink-muted sticky top-0">
+                  <tr>
+                    <DayTh col="date" cur={daySort} onClick={setDayCol} align="left">Дата</DayTh>
+                    <DayTh col="revenue" cur={daySort} onClick={setDayCol}>Выручка</DayTh>
+                    <DayTh col="orders" cur={daySort} onClick={setDayCol}>Заказы</DayTh>
+                    <DayTh col="views" cur={daySort} onClick={setDayCol}>Показы</DayTh>
+                    <DayTh col="pdp" cur={daySort} onClick={setDayCol}>Посещ.</DayTh>
+                    <DayTh col="ctr" cur={daySort} onClick={setDayCol}>CTR</DayTh>
+                    <DayTh col="carts" cur={daySort} onClick={setDayCol}>Корзины</DayTh>
+                    <DayTh col="conv_cart" cur={daySort} onClick={setDayCol}>к.карт</DayTh>
+                    <DayTh col="conv_order" cur={daySort} onClick={setDayCol}>к.корз</DayTh>
+                    <DayTh col="ad_spent" cur={daySort} onClick={setDayCol}>Расход</DayTh>
+                    <DayTh col="drr" cur={daySort} onClick={setDayCol}>ДРР</DayTh>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailySorted.map((d) => (
+                    <tr key={d.date} className="border-t border-line-soft hover:bg-surface-hover">
+                      <Td>{d.date.slice(5)}</Td>
+                      <Td align="right" className="tabular-nums font-medium">{rub(d.revenue)}</Td>
+                      <Td align="right" className="tabular-nums">{d.orders}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{num(d.views)}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{num(d.pdp)}</Td>
+                      <Td align="right" className="tabular-nums">{pct(d.ctr)}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{num(d.carts)}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{pct(d.conv_cart)}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{pct(d.conv_order)}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{rub(d.ad_spent)}</Td>
+                      <Td align="right" className={clsx("tabular-nums font-medium", drrCls(d.drr))}>{pct(d.drr)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-line bg-surface-alt font-semibold">
+                    <Td>Итого</Td>
+                    <Td align="right" className="tabular-nums">{rub(k.revenue)}</Td>
+                    <Td align="right" className="tabular-nums">{k.orders}</Td>
+                    <Td align="right" className="tabular-nums">{num(k.views)}</Td>
+                    <Td align="right" className="tabular-nums">{num(k.pdp)}</Td>
+                    <Td align="right" className="tabular-nums">{pct(k.ctr)}</Td>
+                    <Td align="right" className="tabular-nums">{num(k.carts)}</Td>
+                    <Td align="right" className="tabular-nums">{pct(k.conv_cart)}</Td>
+                    <Td align="right" className="tabular-nums">{pct(k.conv_order)}</Td>
+                    <Td align="right" className="tabular-nums">{rub(k.ad_spent)}</Td>
+                    <Td align="right" className={clsx("tabular-nums", drrCls(k.drr))}>{pct(k.drr)}</Td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p className="mt-2 text-[11px] text-ink-subtle">
+              * Рекламная выручка приходит из Ozon Performance с «широкой» атрибуцией — ДРР общий (расход/выручка) надёжнее.
+            </p>
           </section>
 
           {/* Инсайты */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-5">
             <InsightCard icon={<AlertTriangle size={15} />} tone="rose"
               title="Провал воронки — мало кликов"
               sub="Много показов, низкий CTR → проблема главного фото или цены"
@@ -109,30 +237,7 @@ export function Ozon() {
                       ...data.insights.zero_orders.map((c) => ({ label: `${c.display}`, value: `0 заказов` }))].slice(0, 5)} />
           </section>
 
-          {/* Динамика */}
-          <section className="card p-4 lg:p-5 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium">Динамика по дням</div>
-              <div className="flex items-center gap-3 text-[11px]">
-                <span className="flex items-center gap-1 text-brand-dark dark:text-white"><span className="w-2.5 h-2.5 rounded-sm bg-brand inline-block" /> выручка</span>
-                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> реклама</span>
-              </div>
-            </div>
-            <div className="flex gap-[3px] h-32">
-              {data.dynamics.map((d) => (
-                <div key={d.date} className="flex-1 h-full flex flex-col justify-end gap-[2px]" title={`${d.date}: выручка ${rub(d.revenue)}, реклама ${rub(d.spent)}`}>
-                  <div className="w-full bg-brand/70 rounded-sm min-h-[1px]" style={{ height: `${(d.revenue / maxRev) * 70}%` }} />
-                  <div className="w-full bg-amber-400/70 rounded-sm min-h-[1px]" style={{ height: `${(d.spent / maxSpent) * 25}%` }} />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-1.5 text-[10px] text-ink-subtle">
-              <span>{data.dynamics[0]?.date.slice(5)}</span>
-              <span>{data.dynamics[data.dynamics.length - 1]?.date.slice(5)}</span>
-            </div>
-          </section>
-
-          {/* Таблица */}
+          {/* Разрез по склейкам / артикулам */}
           <section>
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <div className="flex gap-1.5">
@@ -143,6 +248,7 @@ export function Ozon() {
                     {t === "clusters" ? "По склейкам (модели)" : "По артикулам"}
                   </button>
                 ))}
+                <span className="self-center text-[11px] text-ink-subtle ml-1">за {data.funnel_from}—{data.funnel_to}</span>
               </div>
               <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}
                 className="text-[12px] border border-line rounded-md px-2 py-1.5 bg-surface text-ink focus:outline-none focus:border-brand">
@@ -174,7 +280,6 @@ export function Ozon() {
                     const isCluster = "model" in r;
                     const tlKey = isCluster ? (r as OzonCluster).model : (r as { sku_ozon: string }).sku_ozon;
                     const lowCtr = r.ctr < 0.5 && r.views > 5000;
-                    const highDrr = r.drr >= 30;
                     const open = openRow === tlKey;
                     const tl = timeline[tlKey];
                     return (
@@ -201,9 +306,7 @@ export function Ozon() {
                           <Td align="right" className="tabular-nums text-ink-muted">{r.conv_order}%</Td>
                           <Td align="right" className="tabular-nums font-medium">{rub(r.revenue)}</Td>
                           <Td align="right" className="tabular-nums text-ink-muted">{rub(r.ad_spent)}</Td>
-                          <Td align="right" className={clsx("tabular-nums", highDrr ? "text-rose-600 dark:text-rose-400 font-medium" : r.drr > 0 && r.drr < 10 ? "text-emerald-700 dark:text-emerald-300" : "text-ink-muted")}>
-                            {r.drr}%
-                          </Td>
+                          <Td align="right" className={clsx("tabular-nums", drrCls(r.drr))}>{r.drr}%</Td>
                         </tr>
                         {open && (
                           <tr>
@@ -228,11 +331,30 @@ export function Ozon() {
   );
 }
 
+function drrCls(drr: number): string {
+  if (drr >= 30) return "text-rose-600 dark:text-rose-400";
+  if (drr > 0 && drr < 10) return "text-emerald-700 dark:text-emerald-300";
+  return "text-ink-muted";
+}
+
+function Kpi({ label, value, hint, accent = false, tone }: {
+  label: string; value: string; hint?: string; accent?: boolean; tone?: "rose" | "emerald";
+}) {
+  const toneCls = tone === "rose" ? "text-rose-600 dark:text-rose-400"
+    : tone === "emerald" ? "text-emerald-700 dark:text-emerald-300" : "text-ink";
+  return (
+    <div className={clsx("rounded-lg p-3 border", accent ? "bg-brand-tint border-brand/30" : "bg-surface-alt border-line")}>
+      <div className="text-[10px] uppercase tracking-wider text-ink-muted leading-tight">{label}</div>
+      <div className={clsx("text-[17px] font-semibold tracking-tight tabular-nums mt-1", toneCls)}>{value}</div>
+      {hint && <div className="text-[10px] text-ink-subtle mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
 function MiniTimeline({ data }: { data: OzonTimelinePoint[] }) {
   const maxRev = Math.max(...data.map((d) => d.revenue), 1);
   return (
     <div className="space-y-3">
-      {/* мини-график выручки */}
       <div>
         <div className="text-[11px] text-ink-muted mb-1.5">Выручка по дням</div>
         <div className="flex gap-[2px] h-12 items-end">
@@ -243,7 +365,6 @@ function MiniTimeline({ data }: { data: OzonTimelinePoint[] }) {
           ))}
         </div>
       </div>
-      {/* таблица по дням — показы, посещения, CTR, заказы, выручка, реклама, ДРР */}
       <div className="overflow-x-auto">
         <table className="w-full text-[11px] min-w-[640px]">
           <thead className="text-ink-subtle">
@@ -303,19 +424,21 @@ function InsightCard({ icon, tone, title, sub, items }: {
   );
 }
 
-function FunnelStep({ label, value, sub, accent = false }: { label: string; value: string; sub: string; accent?: boolean }) {
-  return (
-    <div className={clsx("rounded-lg p-3 border", accent ? "bg-brand-tint border-brand/30" : "bg-surface-alt border-line")}>
-      <div className="text-[11px] text-ink-muted">{label}</div>
-      <div className="text-lg font-semibold tracking-tight tabular-nums text-ink mt-0.5">{value}</div>
-      {sub && <div className="text-[10px] text-ink-subtle mt-0.5">{sub}</div>}
-    </div>
-  );
-}
-
 function Th({ children, align = "left" }: { children?: React.ReactNode; align?: "left" | "right" }) {
   return <th className={clsx("px-3 py-2 font-medium text-[10px] uppercase tracking-wider", align === "right" ? "text-right" : "text-left")}>{children}</th>;
 }
+function DayTh({ children, col, cur, onClick, align = "right" }: {
+  children: React.ReactNode; col: DayCol; cur: { col: DayCol; dir: 1 | -1 }; onClick: (c: DayCol) => void; align?: "left" | "right";
+}) {
+  const active = cur.col === col;
+  return (
+    <th onClick={() => onClick(col)}
+      className={clsx("px-3 py-2 font-medium text-[10px] uppercase tracking-wider cursor-pointer select-none hover:text-ink",
+        align === "right" ? "text-right" : "text-left", active && "text-brand")}>
+      {children}{active ? (cur.dir === 1 ? " ↑" : " ↓") : ""}
+    </th>
+  );
+}
 function Td({ children, align = "left", className = "" }: { children: React.ReactNode; align?: "left" | "right"; className?: string }) {
-  return <td className={clsx("px-3 py-2.5 align-top", align === "right" && "text-right", className)}>{children}</td>;
+  return <td className={clsx("px-3 py-2 align-top", align === "right" && "text-right", className)}>{children}</td>;
 }

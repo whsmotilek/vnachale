@@ -229,18 +229,33 @@ export interface OzonCluster {
   ad_spent: number; drr: number; net_revenue: number;
 }
 
+export interface OzonKpi {
+  revenue: number; orders: number; views: number; pdp: number; carts: number;
+  cancellations: number; returns: number;
+  ad_spent: number; ad_revenue: number; ad_views: number; ad_clicks: number; ad_orders: number;
+  ctr: number; conv_cart: number; conv_order: number; drr: number; drr_ad: number;
+  avg_order: number; net_revenue: number; days: number;
+}
+
+export interface OzonDailyPoint {
+  date: string;
+  revenue: number; orders: number; views: number; pdp: number; carts: number;
+  cancellations: number; returns: number;
+  ad_spent: number; ad_views: number; ad_clicks: number; ad_orders: number; ad_revenue: number;
+  ctr: number; conv_cart: number; conv_order: number; drr: number; drr_ad: number; net_revenue: number;
+}
+
 export interface OzonDashboard {
   period_from: string;
   period_to: string;
-  kpi: {
-    revenue: number; orders: number; views: number; pdp: number; carts: number;
-    cancellations: number; returns: number;
-    ctr: number; conv_cart: number; conv_order: number;
-    ad_spent: number; ad_orders_money: number; drr: number; drr_ad: number;
-  };
+  available_from: string;
+  available_to: string;
+  funnel_from: string;
+  funnel_to: string;
+  kpi: OzonKpi;
   articles: Array<OzonFunnelRow & { position: number; ad_spent: number; ad_orders: number; drr: number; net_revenue: number }>;
   clusters: OzonCluster[];
-  dynamics: Array<{ date: string; revenue: number; orders: number; spent: number }>;
+  daily: OzonDailyPoint[];
   insights: {
     high_drr: OzonCluster[];
     low_drr: OzonCluster[];
@@ -590,8 +605,12 @@ export const api = {
   async inventoryBalance(): Promise<BalanceResponse> {
     return request(`/inventory/balance?_t=${Date.now()}`);
   },
-  async ozonDashboard(): Promise<OzonDashboard> {
-    return request(`/ozon/dashboard?_t=${Date.now()}`);
+  async ozonDashboard(periodFrom?: string, periodTo?: string): Promise<OzonDashboard> {
+    const p = new URLSearchParams();
+    if (periodFrom) p.set("period_from", periodFrom);
+    if (periodTo) p.set("period_to", periodTo);
+    p.set("_t", String(Date.now()));
+    return request(`/ozon/dashboard?${p.toString()}`);
   },
   async ozonTimeline(key: string, kind: "cluster" | "article"): Promise<{ daily: OzonTimelinePoint[] }> {
     return request(`/ozon/timeline?key=${encodeURIComponent(key)}&kind=${kind}&_t=${Date.now()}`);
