@@ -249,7 +249,7 @@ export function Ozon() {
                     {t === "clusters" ? "По склейкам (модели)" : "По артикулам"}
                   </button>
                 ))}
-                <span className="self-center text-[11px] text-ink-subtle ml-1">за {data.funnel_from}—{data.funnel_to}</span>
+                <span className="self-center text-[11px] text-ink-subtle ml-1">за {data.period_from}—{data.period_to}</span>
               </div>
               <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}
                 className="text-[12px] border border-line rounded-md px-2 py-1.5 bg-surface text-ink focus:outline-none focus:border-brand">
@@ -384,10 +384,10 @@ function MatrixView({ data }: { data: { daily: OzonTimelinePoint[]; totals: Ozon
       </tr>
       {rows.map((row) => (
         <tr key={row.label} className="border-t border-line-soft">
-          <td className="px-2 py-1 text-ink whitespace-nowrap sticky left-0 bg-surface">{row.label}</td>
-          <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink bg-surface-alt whitespace-nowrap">{row.get(totals)}</td>
+          <td className="px-3 py-1.5 text-ink whitespace-nowrap sticky left-0 bg-surface min-w-[180px]">{row.label}</td>
+          <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink bg-surface-alt border-r border-line whitespace-nowrap">{row.get(totals)}</td>
           {daily.map((d) => (
-            <td key={d.date} className="px-2 py-1 text-right tabular-nums text-ink-muted whitespace-nowrap">{row.get(d)}</td>
+            <td key={d.date} className="px-3 py-1.5 text-right tabular-nums text-ink-muted whitespace-nowrap">{row.get(d)}</td>
           ))}
         </tr>
       ))}
@@ -399,10 +399,10 @@ function MatrixView({ data }: { data: { daily: OzonTimelinePoint[]; totals: Ozon
       <table className="text-[11px] border-collapse">
         <thead>
           <tr className="text-ink-subtle border-b border-line">
-            <th className="px-2 py-1 text-left sticky left-0 bg-surface-alt z-10">Показатель</th>
-            <th className="px-2 py-1 text-right font-semibold bg-surface-alt">Итого</th>
+            <th className="px-3 py-1.5 text-left sticky left-0 bg-surface-alt z-10 min-w-[180px]">Показатель</th>
+            <th className="px-3 py-1.5 text-right font-semibold bg-surface-alt border-r border-line min-w-[82px]">Итого</th>
             {daily.map((d) => (
-              <th key={d.date} className="px-2 py-1 text-right whitespace-nowrap font-medium">{d.date.slice(5)}</th>
+              <th key={d.date} className="px-3 py-1.5 text-right whitespace-nowrap font-medium min-w-[56px]">{d.date.slice(5)}</th>
             ))}
           </tr>
         </thead>
