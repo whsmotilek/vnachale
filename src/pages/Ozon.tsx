@@ -149,10 +149,11 @@ export function Ozon() {
             <Kpi label="Добавлено в корзину" value={num(k.carts)} hint="всего" />
             <Kpi label="Конв. карточка→корзина" value={pct(k.conv_cart)} hint="корзины / посещения" />
             <Kpi label="Конв. корзина→заказ" value={pct(k.conv_order)} hint="заказы / корзины" />
-            <Kpi label="Расход рекламы" value={rub(k.ad_spent)} hint="Ozon Performance" />
+            <Kpi label="Расход рекламы" value={rub(k.ad_spent)}
+              hint={k.ad_unallocated > 0 ? `по SKU ${rub(k.ad_sku)} + без SKU ${rub(k.ad_unallocated)}` : "Ozon Performance"} />
             <Kpi label="ДРР общий" value={pct(k.drr)} hint="расход / выручка"
               tone={k.drr >= 15 ? "rose" : k.drr > 0 && k.drr < 8 ? "emerald" : undefined} />
-            <Kpi label="Рекламная выручка" value={rub(k.ad_revenue)} hint="атрибут. рекламе*" />
+            <Kpi label="Рекламная выручка" value={rub(k.ad_revenue)} hint="справочно · широкая атрибуция Ozon" />
             <Kpi label="Чистая выручка" value={rub(k.net_revenue)} hint="выручка − реклама" />
           </section>
 
@@ -314,7 +315,10 @@ export function Ozon() {
               })}
             </div>
             <p className="mt-2 text-[11px] text-ink-subtle">
-              Клик по строке — динамика по дням. <span className="text-rose-600 dark:text-rose-400">Красный CTR/ДРР</span> — проблема; <span className="text-emerald-700 dark:text-emerald-300">зелёный ДРР</span> — реклама окупается.
+              Клик по строке — матрица метрик по дням. <span className="text-rose-600 dark:text-rose-400">Красный CTR/ДРР</span> — проблема; <span className="text-emerald-700 dark:text-emerald-300">зелёный ДРР</span> — реклама окупается.
+              {k.ad_unallocated > 0 && (
+                <> Расход в склейках — привязанный к SKU ({rub(k.ad_sku)}); реклама без привязки к SKU ({rub(k.ad_unallocated)}) — кампании без артикульного разреза (брендовая полка/медийка), учтена в общем ДРР сверху.</>
+              )}
             </p>
           </section>
         </>

@@ -233,6 +233,7 @@ export interface OzonKpi {
   revenue: number; orders: number; views: number; pdp: number; carts: number;
   cancellations: number; returns: number;
   ad_spent: number; ad_revenue: number; ad_views: number; ad_clicks: number; ad_orders: number;
+  ad_sku: number; ad_unallocated: number;
   ctr: number; conv_cart: number; conv_order: number; drr: number; drr_ad: number;
   avg_order: number; net_revenue: number; days: number;
 }
