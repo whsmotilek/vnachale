@@ -36,11 +36,10 @@ const PRESETS: Array<{ key: PeriodKey; label: string }> = [
 ];
 
 type SortBy =
-  | "revenue" | "units" | "velocity" | "cancel" | "available"
+  | "units" | "velocity" | "cancel" | "available"
   | "days_to_stockout" | "search_users" | "position" | "position_delta" | "conversion";
 
 const SORT_LABEL: Record<SortBy, string> = {
-  revenue: "Выручка ↓",
   units: "Продано ↓",
   velocity: "Velocity ↓",
   cancel: "% отмен ↓",
@@ -71,7 +70,7 @@ export function OzonTraffic() {
   const [to, setTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
-  const [sortBy, setSortBy] = useState<SortBy>("revenue");
+  const [sortBy, setSortBy] = useState<SortBy>("units");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<OzonCard | null>(null);
 
@@ -115,9 +114,6 @@ export function OzonTraffic() {
     const sorted = [...list];
     const safe = (v: number | null | undefined, fallback: number) => (v == null ? fallback : v);
     switch (sortBy) {
-      case "revenue":
-        sorted.sort((a, b) => b.revenue_realized - a.revenue_realized);
-        break;
       case "units":
         sorted.sort(
           (a, b) => (b.units_delivered + b.units_delivering) - (a.units_delivered + a.units_delivering),
@@ -157,10 +153,11 @@ export function OzonTraffic() {
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Селект · Трафик карточек</h1>
         <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
-          Поведение каждой карточки на Ozon: продажи, отмены, остатки, позиция в поиске,
-          топ поисковых запросов, Ozon-грейд. Поисковая воронка (Premium) показывает
-          <b> только данные из поиска</b> — рекомендательные полки и прямой трафик
-          в неё не входят (Ozon API не отдаёт сейчас эти метрики никому, депрекейтили).
+          Здоровье каждой карточки на Ozon: позиция в поиске, поисковый спрос и конверсия,
+          Ozon-грейд, остатки и дни до нуля, возвраты, топ поисковых запросов.
+          Деньги и динамика по дням (выручка, реклама, ДРР) — на странице «Селект · Аналитика».
+          Поисковая воронка (Premium) показывает <b>только данные из поиска</b> — рекомендательные
+          полки и прямой трафик в неё не входят (Ozon депрекейтил эти метрики в общем API).
         </p>
       </header>
 
@@ -214,7 +211,7 @@ export function OzonTraffic() {
             <StatCard
               label="Активные SKU"
               value={`${data.active_skus} / ${data.total_skus}`}
-              hint={`выручка ${formatRub(data.total_revenue)}`}
+              hint="есть продажи за период"
             />
             <StatCard
               label="Молчат"
@@ -425,7 +422,6 @@ export function OzonTraffic() {
                       <Th>Артикул</Th>
                       <Th>Модель · цвет · размер</Th>
                       <Th align="right">Продано</Th>
-                      <Th align="right">Выручка</Th>
                       <Th align="right">Velocity</Th>
                       <Th align="right">% отмен</Th>
                       {data.has_premium_data && (
@@ -456,7 +452,6 @@ export function OzonTraffic() {
                             </div>
                           </Td>
                           <Td align="right" className="tabular-nums font-medium">{sold}</Td>
-                          <Td align="right" className="tabular-nums">{formatRub(c.revenue_realized)}</Td>
                           <Td align="right" className="tabular-nums">{c.velocity_per_day.toFixed(2)}</Td>
                           <Td align="right" className={clsx("tabular-nums", c.cancel_rate > 0.5 && "text-rose-700 dark:text-rose-300 font-medium")}>
                             {formatPct(c.cancel_rate)}
@@ -608,8 +603,6 @@ function CrossAnalytics({
                 <th className="px-3 py-2 text-left font-medium text-[10px] uppercase tracking-wider">Модель</th>
                 <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">SKU</th>
                 <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Продано</th>
-                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Выручка</th>
-                <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">Ср. чек</th>
                 <th className="px-3 py-2 text-right font-medium text-[10px] uppercase tracking-wider">% отмен</th>
                 {hasPremium && (
                   <>
@@ -644,8 +637,6 @@ function CrossAnalytics({
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{m.sku_count}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums font-medium">{m.units_sold}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatRub(m.revenue)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{m.avg_ticket > 0 ? formatRub(Math.round(m.avg_ticket)) : "—"}</td>
                       <td className={clsx(
                         "px-3 py-2.5 text-right tabular-nums",
                         m.cancel_rate > 0.6 && "text-rose-700 dark:text-rose-300 font-medium",
@@ -676,7 +667,7 @@ function CrossAnalytics({
                     </tr>
                     {isOpen && (
                       <tr>
-                        <td colSpan={hasPremium ? 10 : 7} className="p-0 bg-surface-alt border-t border-line-soft">
+                        <td colSpan={hasPremium ? 8 : 5} className="p-0 bg-surface-alt border-t border-line-soft">
                           <ModelDetail m={m} />
                         </td>
                       </tr>
