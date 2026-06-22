@@ -130,6 +130,16 @@ export function orderWarehouse(itemsStr: string | null | undefined): "our" | "ff
 
 // === типы данных ===
 
+export interface OrderActivityItem {
+  ts: string;
+  event: string;
+  actor: { name: string; username: string; role: string };
+  from: string;
+  to: string;
+  text: string;
+  is_comment: boolean;
+}
+
 export interface Order {
   order_id: string;
   created_at: string;
@@ -694,6 +704,15 @@ export const api = {
     await request(`/orders/${encodeURIComponent(orderId)}/delivery_price`, {
       method: "PATCH",
       body: JSON.stringify({ delivery_price: price }),
+    });
+  },
+  async orderActivity(orderId: string): Promise<{ activity: OrderActivityItem[] }> {
+    return request(`/orders/${encodeURIComponent(orderId)}/activity?_t=${Date.now()}`);
+  },
+  async addOrderComment(orderId: string, text: string): Promise<{ ok: boolean; comment: OrderActivityItem }> {
+    return request(`/orders/${encodeURIComponent(orderId)}/comment`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
     });
   },
 };

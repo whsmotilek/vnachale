@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Check, Copy, Pencil } from "lucide-react";
-import { api, type Order } from "../api";
+import { Check, Copy, Pencil, Send, MessageSquare } from "lucide-react";
+import { api, type Order, type OrderActivityItem } from "../api";
 import { useCopy } from "../hooks/useCopy";
 import { ItemsList } from "./ItemsList";
 
@@ -247,6 +247,125 @@ export function OrderDetails({
         <Row label="Закреплено за">
           <span className="text-[13px] text-ink">{order.assigned_to}</span>
         </Row>
+      )}
+
+      <div className="sm:col-span-2 lg:col-span-3">
+        <OrderActivity orderId={order.order_id} readOnly={readOnly} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Лента активности заказа: системные события «Журнала» + комментарии ───
+function activityTone(ev: string): string {
+  if (ev === "comment") return "bg-brand";
+  if (ev.startsWith("stock_")) return "bg-amber-400";
+  if (ev === "email_sent") return "bg-emerald-400";
+  if (ev === "payment_succeeded") return "bg-emerald-500";
+  if (ev.startsWith("refund") || ev === "auto_cancel_unpaid") return "bg-rose-400";
+  return "bg-ink-soft";
+}
+function roleLabel(role: string): string {
+  return ({ owner: "владелец", fulfillment: "склад", manager: "менеджер", ozon: "ozon" } as Record<string, string>)[role] || "";
+}
+function authorLine(a: { name: string; username: string; role: string }): string {
+  const handle = a.username ? `@${a.username}` : "";
+  if (a.name && handle && a.name.toLowerCase() !== a.username.toLowerCase()) return `${a.name} · ${handle}`;
+  return handle || a.name || "Система";
+}
+function activityTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow",
+  }).format(d);
+}
+
+function OrderActivity({ orderId, readOnly }: { orderId: string; readOnly: boolean }) {
+  const [items, setItems] = useState<OrderActivityItem[] | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.orderActivity(orderId)
+      .then((r) => { if (!cancelled) setItems(r.activity); })
+      .catch(() => { if (!cancelled) setItems([]); });
+    return () => { cancelled = true; };
+  }, [orderId]);
+
+  async function send() {
+    const text = draft.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await api.addOrderComment(orderId, text);
+      setItems((prev) => [...(prev || []), r.comment]);
+      setDraft("");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-1 border-t border-line pt-3">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-muted font-medium mb-2">
+        <MessageSquare size={12} /> История и комментарии
+      </div>
+
+      {items === null ? (
+        <div className="text-[12px] text-ink-subtle">Загрузка…</div>
+      ) : items.length === 0 ? (
+        <div className="text-[12px] text-ink-subtle">Пока пусто.</div>
+      ) : (
+        <ul className="space-y-2 mb-3 max-h-72 overflow-y-auto pr-1">
+          {items.map((it, i) => (
+            <li key={i} className="flex gap-2 text-[12px]">
+              <span className={clsx("mt-1.5 w-1.5 h-1.5 rounded-full shrink-0", activityTone(it.event))} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-ink font-medium">{authorLine(it.actor)}</span>
+                  {it.actor.role && roleLabel(it.actor.role) && (
+                    <span className="text-[10px] px-1 py-0.5 rounded bg-surface-hover text-ink-subtle">{roleLabel(it.actor.role)}</span>
+                  )}
+                  <span className="text-[10px] text-ink-subtle">{activityTime(it.ts)}</span>
+                </div>
+                <div className={clsx("whitespace-pre-line break-words", it.is_comment ? "text-ink" : "text-ink-muted")}>
+                  {it.text || it.event}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!readOnly && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }}
+              rows={2}
+              placeholder="Комментарий к заказу… (Ctrl+Enter — отправить)"
+              disabled={busy}
+              className="flex-1 text-[13px] border border-line rounded-md px-2 py-1.5 bg-surface text-ink focus:outline-none focus:border-brand resize-y disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={send}
+              disabled={busy || !draft.trim()}
+              className="px-3 py-1.5 text-[12px] rounded-md bg-brand text-white hover:bg-brand-hover transition-colors disabled:opacity-40 font-medium inline-flex items-center gap-1.5 shrink-0"
+            >
+              <Send size={13} /> {busy ? "…" : "Отправить"}
+            </button>
+          </div>
+          {err && <div className="text-[11px] text-rose-700 dark:text-rose-300">{err}</div>}
+        </div>
       )}
     </div>
   );
