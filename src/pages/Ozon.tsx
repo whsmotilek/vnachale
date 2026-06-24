@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, AlertTriangle, TrendingUp, Flame } from "lucide-react";
 import { api, ApiError, type OzonDashboard, type OzonCluster, type OzonTimelinePoint, type OzonDailyPoint } from "../api";
@@ -139,6 +139,9 @@ export function Ozon() {
         <StatCardsSkeleton />
       ) : data && k ? (
         <>
+          {/* График-тренд по дням с наведением (свечка) — вверху, реагирует на период */}
+          <DailyTrendChart daily={data.daily} from={data.period_from} to={data.period_to} />
+
           {/* 12 KPI как в плановой таблице */}
           <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
             <Kpi label="Выручка" value={rub(k.revenue)} hint={`${num(k.days)} дн · ср.чек ${rub(k.avg_order)}`} accent />
@@ -331,6 +334,120 @@ function drrCls(drr: number): string {
   if (drr >= 30) return "text-rose-600 dark:text-rose-400";
   if (drr > 0 && drr < 10) return "text-emerald-700 dark:text-emerald-300";
   return "text-ink-muted";
+}
+
+// Дневной график-тренд с наведением (как «Заказано товаров» в Ozon).
+// Реагирует на выбранный период (получает уже отфильтрованный data.daily).
+// Ширину меряем через ResizeObserver → viewBox 1:1 пикселям, без искажений.
+function DailyTrendChart({ daily, from, to }: { daily: OzonDailyPoint[]; from?: string; to?: string }) {
+  const [metric, setMetric] = useState<"orders" | "revenue">("orders");
+  const [hover, setHover] = useState<number | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [w, setW] = useState(820);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((es) => setW(Math.max(280, es[0].contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const pts = useMemo(() => [...daily].sort((a, b) => a.date.localeCompare(b.date)), [daily]);
+  const n = pts.length;
+
+  if (n === 0) return null;
+
+  const vals = pts.map((d) => (metric === "orders" ? d.orders : d.revenue));
+  const maxV = Math.max(1, ...vals);
+  const total = vals.reduce((s, v) => s + v, 0);
+  const fmt = metric === "orders" ? num : rub;
+
+  const H = 230, padR = 14, padT = 18, padB = 24, padL = 10;
+  const W = w;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const baseY = padT + innerH;
+  const xAt = (i: number) => (n <= 1 ? padL + innerW / 2 : padL + (i / (n - 1)) * innerW);
+  const yAt = (v: number) => padT + innerH - (v / maxV) * innerH;
+
+  const linePath = vals.map((v, i) => `${i === 0 ? "M" : "L"} ${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`).join(" ");
+  const areaPath = n >= 2 ? `${linePath} L ${xAt(n - 1).toFixed(1)} ${baseY} L ${xAt(0).toFixed(1)} ${baseY} Z` : "";
+
+  const step = Math.max(1, Math.ceil(n / 9));
+  const xTicks = pts.map((_, i) => i).filter((i) => i % step === 0 || i === n - 1);
+
+  function onMove(e: React.MouseEvent) {
+    const el = wrapRef.current;
+    if (!el || n === 0) return;
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    setHover(Math.round(frac * (n - 1)));
+  }
+
+  const hi = hover != null && hover >= 0 && hover < n ? hover : null;
+  const hp = hi != null ? pts[hi] : null;
+
+  return (
+    <section className="card p-4 mb-4">
+      <header className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div>
+          <h2 className="text-[14px] font-semibold tracking-tightish text-ink">Динамика по дням</h2>
+          <p className="text-[11px] text-ink-subtle">наведи на график — данные за день</p>
+        </div>
+        <div className="flex gap-1">
+          {([["orders", "Заказы"], ["revenue", "Выручка"]] as ["orders" | "revenue", string][]).map(([m, l]) => (
+            <button key={m} onClick={() => setMetric(m)}
+              className={clsx("px-2.5 py-1 text-[11px] rounded-md border transition-colors",
+                metric === m ? "bg-brand text-white border-brand" : "bg-surface border-line text-ink-muted hover:bg-surface-hover")}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div ref={wrapRef} className="relative select-none" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}>
+          {[maxV, maxV / 2].map((v, i) => (
+            <g key={i}>
+              <line x1={padL} y1={yAt(v)} x2={W - padR} y2={yAt(v)}
+                stroke="currentColor" strokeWidth="1" className="text-line" strokeDasharray="3 3" />
+              <text x={W - padR} y={yAt(v) - 3} textAnchor="end" className="fill-ink-subtle" fontSize="10">{fmt(Math.round(v))}</text>
+            </g>
+          ))}
+          {areaPath && <path d={areaPath} fill="#1a0088" fillOpacity="0.08" />}
+          <path d={linePath} fill="none" stroke="#1a0088" strokeWidth="2.5" strokeLinejoin="round" />
+          {n <= 1 && <circle cx={xAt(0)} cy={yAt(vals[0])} r="3.5" fill="#1a0088" />}
+          {hi != null && (
+            <g>
+              <line x1={xAt(hi)} y1={padT} x2={xAt(hi)} y2={baseY} stroke="#1a0088" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
+              <circle cx={xAt(hi)} cy={yAt(vals[hi])} r="4.5" fill="#fff" stroke="#1a0088" strokeWidth="2.5" />
+            </g>
+          )}
+          {xTicks.map((i) => (
+            <text key={i} x={xAt(i)} y={H - 7} textAnchor="middle" className="fill-ink-subtle" fontSize="10">{pts[i].date.slice(5)}</text>
+          ))}
+        </svg>
+
+        {hp && (
+          <div className="pointer-events-none absolute top-0 z-10"
+            style={{ left: `${(hi! / Math.max(1, n - 1)) * 100}%`, transform: hi! > n / 2 ? "translateX(-106%)" : "translateX(6%)" }}>
+            <div className="bg-ink text-white text-[11px] rounded-md px-2.5 py-1.5 shadow-lg whitespace-nowrap leading-snug">
+              <div className="font-semibold mb-0.5">{hp.date.slice(5)}</div>
+              <div>Заказы: <b className="tabular-nums">{num(hp.orders)}</b> шт</div>
+              <div>Выручка: <b className="tabular-nums">{rub(hp.revenue)}</b></div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-baseline gap-2 text-[12px]">
+        <span className="text-ink-muted">
+          {metric === "orders" ? "Заказов" : "Выручка"} за период{from && to ? ` ${from.slice(5)}–${to.slice(5)}` : ""}:
+        </span>
+        <span className="text-[16px] font-semibold tabular-nums text-ink">{fmt(total)}{metric === "orders" ? " шт" : ""}</span>
+      </div>
+    </section>
+  );
 }
 
 function Kpi({ label, value, hint, accent = false, tone }: {
