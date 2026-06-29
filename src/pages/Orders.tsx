@@ -65,7 +65,9 @@ export function Orders({ readOnly = false }: { readOnly?: boolean }) {
   // Чисто-ФФ заказы (только новые позиции) видны на странице «Заказы ФФ».
   const regularOrders = useMemo(() => {
     if (!orders) return null;
-    return orders.filter((o) => orderWarehouse(o.items) === "our");
+    // Отменённые скрываем с рабочей страницы склада, чтобы не мозолили глаз менеджеру.
+    // Из базы не удаляются — остаются видны на общей странице «Все заказы».
+    return orders.filter((o) => orderWarehouse(o.items) === "our" && o.status !== "cancelled");
   }, [orders]);
 
   const filtered = useMemo(

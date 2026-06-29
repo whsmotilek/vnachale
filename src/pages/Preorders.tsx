@@ -57,7 +57,8 @@ export function Preorders({ readOnly = false }: { readOnly?: boolean }) {
   // Фильтр: только заказы склада ФФ (целиком предзаказные)
   const preorderOrders = useMemo(() => {
     if (!orders) return null;
-    return orders.filter((o) => orderWarehouse(o.items) === "ff");
+    // Отменённые скрываем с рабочей страницы ФФ (остаются на общей «Все заказы»).
+    return orders.filter((o) => orderWarehouse(o.items) === "ff" && o.status !== "cancelled");
   }, [orders]);
 
   const filtered = useMemo(
