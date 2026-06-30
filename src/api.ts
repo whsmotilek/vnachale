@@ -236,7 +236,7 @@ export interface OzonCluster {
   views: number; pdp: number; carts: number; orders: number; revenue: number;
   cancellations: number; returns: number; skus: number;
   ctr: number; conv_cart: number; conv_order: number;
-  ad_spent: number; drr: number; net_revenue: number;
+  ad_spent: number; drr: number; net_revenue: number; cpo: number;
 }
 
 export interface OzonKpi {
@@ -245,7 +245,7 @@ export interface OzonKpi {
   ad_spent: number; ad_revenue: number; ad_views: number; ad_clicks: number; ad_orders: number;
   ad_sku: number; ad_unallocated: number;
   ctr: number; conv_cart: number; conv_order: number; drr: number; drr_ad: number;
-  avg_order: number; net_revenue: number; days: number;
+  avg_order: number; net_revenue: number; cpo: number; days: number;
 }
 
 export interface OzonDailyPoint {
@@ -253,7 +253,7 @@ export interface OzonDailyPoint {
   revenue: number; orders: number; views: number; pdp: number; carts: number;
   cancellations: number; returns: number;
   ad_spent: number; ad_views: number; ad_clicks: number; ad_orders: number; ad_revenue: number;
-  ctr: number; conv_cart: number; conv_order: number; drr: number; drr_ad: number; net_revenue: number;
+  ctr: number; conv_cart: number; conv_order: number; drr: number; drr_ad: number; net_revenue: number; cpo: number;
 }
 
 export interface OzonDashboard {
@@ -264,7 +264,7 @@ export interface OzonDashboard {
   funnel_from: string;
   funnel_to: string;
   kpi: OzonKpi;
-  articles: Array<OzonFunnelRow & { position: number; ad_spent: number; ad_orders: number; drr: number; net_revenue: number }>;
+  articles: Array<OzonFunnelRow & { position: number; ad_spent: number; ad_orders: number; drr: number; net_revenue: number; cpo: number }>;
   clusters: OzonCluster[];
   daily: OzonDailyPoint[];
   insights: {

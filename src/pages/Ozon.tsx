@@ -21,7 +21,7 @@ function shiftDate(iso: string, days: number): string {
 }
 
 type Tab = "clusters" | "articles";
-type SortKey = "revenue" | "orders" | "views" | "ctr" | "conv_order" | "drr";
+type SortKey = "revenue" | "orders" | "views" | "ctr" | "conv_order" | "drr" | "cpo";
 type Preset = "7" | "14" | "30" | "all" | "custom";
 type DayCol = keyof OzonDailyPoint;
 
@@ -156,6 +156,7 @@ export function Ozon() {
               hint={k.ad_unallocated > 0 ? `по SKU ${rub(k.ad_sku)} + без SKU ${rub(k.ad_unallocated)}` : "Ozon Performance"} />
             <Kpi label="ДРР общий" value={pct(k.drr)} hint="расход / выручка"
               tone={k.drr >= 15 ? "rose" : k.drr > 0 && k.drr < 8 ? "emerald" : undefined} />
+            <Kpi label="Цена заказа (реклама)" value={k.cpo ? rub(k.cpo) : "—"} hint="расход рекламы / заказы" />
             <Kpi label="Рекламная выручка" value={rub(k.ad_revenue)} hint="справочно · широкая атрибуция Ozon" />
             <Kpi label="Чистая выручка" value={rub(k.net_revenue)} hint="выручка − реклама" />
           </section>
@@ -180,6 +181,7 @@ export function Ozon() {
                     <DayTh col="conv_order" cur={daySort} onClick={setDayCol}>к.корз</DayTh>
                     <DayTh col="ad_spent" cur={daySort} onClick={setDayCol}>Расход</DayTh>
                     <DayTh col="drr" cur={daySort} onClick={setDayCol}>ДРР</DayTh>
+                    <DayTh col="cpo" cur={daySort} onClick={setDayCol}>CPO</DayTh>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,6 +198,7 @@ export function Ozon() {
                       <Td align="right" className="tabular-nums text-ink-muted">{pct(d.conv_order)}</Td>
                       <Td align="right" className="tabular-nums text-ink-muted">{rub(d.ad_spent)}</Td>
                       <Td align="right" className={clsx("tabular-nums font-medium", drrCls(d.drr))}>{pct(d.drr)}</Td>
+                      <Td align="right" className="tabular-nums text-ink-muted">{d.cpo ? rub(d.cpo) : "—"}</Td>
                     </tr>
                   ))}
                 </tbody>
@@ -212,6 +215,7 @@ export function Ozon() {
                     <Td align="right" className="tabular-nums">{pct(k.conv_order)}</Td>
                     <Td align="right" className="tabular-nums">{rub(k.ad_spent)}</Td>
                     <Td align="right" className={clsx("tabular-nums", drrCls(k.drr))}>{pct(k.drr)}</Td>
+                    <Td align="right" className="tabular-nums">{k.cpo ? rub(k.cpo) : "—"}</Td>
                   </tr>
                 </tfoot>
               </table>
@@ -263,12 +267,13 @@ export function Ozon() {
                 <option value="ctr">CTR</option>
                 <option value="conv_order">Конверсия в заказ</option>
                 <option value="drr">ДРР</option>
+                <option value="cpo">CPO (цена заказа)</option>
               </select>
             </div>
 
             {/* Список на div-сетке: раскрытая матрица получает свой горизонтальный скролл */}
             <div className="card overflow-hidden text-[12px]">
-              <div className="hidden sm:grid grid-cols-[minmax(150px,2.4fr)_repeat(7,minmax(56px,1fr))] gap-2 px-3 py-2 bg-surface-alt border-b border-line text-ink-muted text-[10px] uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-[minmax(150px,2.4fr)_repeat(8,minmax(56px,1fr))] gap-2 px-3 py-2 bg-surface-alt border-b border-line text-ink-muted text-[10px] uppercase tracking-wider">
                 <div>{tab === "clusters" ? "Модель" : "Артикул"}</div>
                 <div className="text-right">Показы</div>
                 <div className="text-right">CTR</div>
@@ -277,6 +282,7 @@ export function Ozon() {
                 <div className="text-right">Выручка</div>
                 <div className="text-right">Реклама</div>
                 <div className="text-right">ДРР</div>
+                <div className="text-right">CPO</div>
               </div>
               {rows.map((r) => {
                 const isCluster = "model" in r;
@@ -287,7 +293,7 @@ export function Ozon() {
                 return (
                   <div key={tlKey} className="border-t border-line first:border-0">
                     <button onClick={() => toggleRow(tlKey)}
-                      className="w-full grid grid-cols-[minmax(150px,2.4fr)_repeat(7,minmax(56px,1fr))] gap-2 px-3 py-2.5 items-center text-left hover:bg-surface-hover">
+                      className="w-full grid grid-cols-[minmax(150px,2.4fr)_repeat(8,minmax(56px,1fr))] gap-2 px-3 py-2.5 items-center text-left hover:bg-surface-hover">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <ChevronDown size={12} className={clsx("shrink-0 text-ink-soft transition-transform", open && "rotate-180 text-brand")} />
                         <div className="min-w-0">
@@ -307,6 +313,7 @@ export function Ozon() {
                       <div className="text-right tabular-nums font-medium">{rub(r.revenue)}</div>
                       <div className="text-right tabular-nums text-ink-muted">{rub(r.ad_spent)}</div>
                       <div className={clsx("text-right tabular-nums", drrCls(r.drr))}>{r.drr}%</div>
+                      <div className="text-right tabular-nums text-ink-muted">{r.cpo ? rub(r.cpo) : "—"}</div>
                     </button>
                     {open && (
                       <div className="bg-surface-alt border-t border-line-soft px-3 py-3">
@@ -482,6 +489,7 @@ const AD_ROWS: Array<{ label: string; get: (d: OzonTimelinePoint) => string }> =
   { label: "Реклама: CTR", get: (d) => pct(d.ad_ctr) },
   { label: "Реклама: заказы, шт", get: (d) => num(d.ad_orders) },
   { label: "Реклама: расход, ₽", get: (d) => num(d.ad_spent) },
+  { label: "Реклама: цена заказа, ₽", get: (d) => (d.orders ? num(Math.round(d.ad_spent / d.orders)) : "—") },
 ];
 
 function MatrixView({ data }: { data: { daily: OzonTimelinePoint[]; totals: OzonTimelinePoint } }) {
