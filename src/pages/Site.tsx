@@ -82,8 +82,8 @@ function VisitsChart({ data }: { data: SiteAnalyticsResponse["daily"] }) {
         <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
           <defs>
             <linearGradient id="vfill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1a0088" stopOpacity="0.12" />
-              <stop offset="100%" stopColor="#1a0088" stopOpacity="0" />
+              <stop offset="0%" stopColor="#DA0500" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#DA0500" stopOpacity="0" />
             </linearGradient>
           </defs>
           <line x1={padX} x2={w - padX} y1={padTop + innerH} y2={padTop + innerH} stroke="#e9e9e7" strokeWidth="1" />
@@ -91,7 +91,7 @@ function VisitsChart({ data }: { data: SiteAnalyticsResponse["daily"] }) {
             d={`${linePath("visits")} L ${xAt(data.length - 1).toFixed(1)} ${(padTop + innerH).toFixed(1)} L ${xAt(0).toFixed(1)} ${(padTop + innerH).toFixed(1)} Z`}
             fill="url(#vfill)"
           />
-          <path d={linePath("visits")} fill="none" stroke="#1a0088" strokeWidth="2" strokeLinejoin="round" />
+          <path d={linePath("visits")} fill="none" stroke="#DA0500" strokeWidth="2" strokeLinejoin="round" />
           <path d={linePath("users")} fill="none" stroke="#6b7280" strokeWidth="1.5" strokeLinejoin="round" strokeDasharray="3 3" />
         </svg>
         <div className="flex justify-between mt-1 text-[10px] text-ink-subtle px-1 tabular-nums">
@@ -288,7 +288,7 @@ export function Site() {
           <section className="mb-6 animate-fade-in">
             <div className="card relative overflow-hidden">
               <div className="absolute inset-0 pointer-events-none"
-                style={{ background: "radial-gradient(800px 240px at 0% 0%, rgba(26,0,136,0.08), transparent 60%)" }} />
+                style={{ background: "radial-gradient(800px 240px at 0% 0%, rgba(218,5,0,0.08), transparent 60%)" }} />
               <div className="relative p-5">
                 <div className="text-[11px] uppercase tracking-wider text-ink-muted font-medium">
                   Реальная выручка с сайта {subtitle}

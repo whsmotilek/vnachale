@@ -90,8 +90,8 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
         >
           <defs>
             <linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1a0088" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="#1a0088" stopOpacity="0" />
+              <stop offset="0%" stopColor="#DA0500" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#DA0500" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -106,7 +106,7 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
           />
 
           <path d={areaPath} fill="url(#sparkfill)" />
-          <path d={linePath} fill="none" stroke="#1a0088" strokeWidth="2" strokeLinejoin="round" />
+          <path d={linePath} fill="none" stroke="#DA0500" strokeWidth="2" strokeLinejoin="round" />
 
           {/* hover hit areas: invisible vertical bars */}
           {data.map((d, i) => {
@@ -141,7 +141,7 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
                 cx={xAt(hover)}
                 cy={yAt(data[hover].revenue)}
                 r="4"
-                fill="#1a0088"
+                fill="#DA0500"
                 stroke="#fff"
                 strokeWidth="2"
               />

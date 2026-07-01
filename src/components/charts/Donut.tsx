@@ -5,8 +5,8 @@ export interface DonutSlice {
   value: number;
 }
 
-// палитра — оттенки brand + нейтральные
-const COLORS = ["#1a0088", "#372a9a", "#5a4ec2", "#8782db", "#b0aef0", "#d3d3d1"];
+// палитра — оттенки brand (красный) + нейтральный последний
+const COLORS = ["#DA0500", "#E5443A", "#EC6F66", "#F29B94", "#F7C6C1", "#D3D3D1"];
 
 export function Donut({
   title,

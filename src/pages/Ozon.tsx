@@ -421,13 +421,13 @@ function DailyTrendChart({ daily, from, to }: { daily: OzonDailyPoint[]; from?: 
               <text x={W - padR} y={yAt(v) - 3} textAnchor="end" className="fill-ink-subtle" fontSize="10">{fmt(Math.round(v))}</text>
             </g>
           ))}
-          {areaPath && <path d={areaPath} fill="#1a0088" fillOpacity="0.08" />}
-          <path d={linePath} fill="none" stroke="#1a0088" strokeWidth="2.5" strokeLinejoin="round" />
-          {n <= 1 && <circle cx={xAt(0)} cy={yAt(vals[0])} r="3.5" fill="#1a0088" />}
+          {areaPath && <path d={areaPath} fill="#DA0500" fillOpacity="0.08" />}
+          <path d={linePath} fill="none" stroke="#DA0500" strokeWidth="2.5" strokeLinejoin="round" />
+          {n <= 1 && <circle cx={xAt(0)} cy={yAt(vals[0])} r="3.5" fill="#DA0500" />}
           {hi != null && (
             <g>
-              <line x1={xAt(hi)} y1={padT} x2={xAt(hi)} y2={baseY} stroke="#1a0088" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
-              <circle cx={xAt(hi)} cy={yAt(vals[hi])} r="4.5" fill="#fff" stroke="#1a0088" strokeWidth="2.5" />
+              <line x1={xAt(hi)} y1={padT} x2={xAt(hi)} y2={baseY} stroke="#DA0500" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
+              <circle cx={xAt(hi)} cy={yAt(vals[hi])} r="4.5" fill="#fff" stroke="#DA0500" strokeWidth="2.5" />
             </g>
           )}
           {xTicks.map((i) => (

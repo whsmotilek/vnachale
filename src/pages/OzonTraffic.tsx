@@ -1135,9 +1135,9 @@ function HistoryChart({ history }: { history: OzonCard["premium_history"] }) {
           <circle key={`p-${i}`} cx={xAt(i)} cy={yPos(p)} r="3" fill="#ea580c" />
         ))}
         {/* Конверсия — синяя */}
-        <path d={linePath(convs, yConv)} fill="none" stroke="#1a0088" strokeWidth="2" strokeDasharray="4 2" />
+        <path d={linePath(convs, yConv)} fill="none" stroke="#DA0500" strokeWidth="2" strokeDasharray="4 2" />
         {convs.map((c, i) => (
-          <circle key={`c-${i}`} cx={xAt(i)} cy={yConv(c)} r="3" fill="#1a0088" />
+          <circle key={`c-${i}`} cx={xAt(i)} cy={yConv(c)} r="3" fill="#DA0500" />
         ))}
       </svg>
       <div className="flex justify-between text-[9px] text-ink-subtle px-1 mt-0.5 tabular-nums">
@@ -1150,7 +1150,7 @@ function HistoryChart({ history }: { history: OzonCard["premium_history"] }) {
           <span className="w-3 h-0.5 bg-orange-600" /> позиция (вверх = хуже)
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 inline-block" style={{ borderTop: "1px dashed #1a0088" }} /> CTR показ→PDP %
+          <span className="w-3 inline-block" style={{ borderTop: "1px dashed #DA0500" }} /> CTR показ→PDP %
         </span>
       </div>
     </div>

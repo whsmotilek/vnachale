@@ -17,8 +17,8 @@
     --line:           233 233 231;
     --line-strong:    211 211 209;
     --line-soft:      240 240 238;
-    --brand-tint:        241 238 255;
-    --brand-tint-strong: 220 210 255;
+    --brand-tint:        253 235 233;
+    --brand-tint-strong: 250 214 210;
   }
 
   .dark {
@@ -34,8 +34,8 @@
     --line:            42  42  48;
     --line-strong:     58  58  65;
     --line-soft:       30  30  35;
-    --brand-tint:        38  18 110;
-    --brand-tint-strong: 56  30 138;
+    --brand-tint:        64  22  20;
+    --brand-tint-strong: 96  28  24;
   }
 
   html {
@@ -91,8 +91,8 @@
   }
   .bg-brand-veil {
     background:
-      radial-gradient(1200px 600px at 100% -100px, rgba(26, 0, 136, 0.08), transparent 60%),
-      radial-gradient(800px 400px at 0% 110%, rgba(26, 0, 136, 0.05), transparent 60%),
+      radial-gradient(1200px 600px at 100% -100px, rgba(218, 5, 0, 0.07), transparent 60%),
+      radial-gradient(800px 400px at 0% 110%, rgba(218, 5, 0, 0.05), transparent 60%),
       rgb(var(--surface));
   }
   .skeleton {

@@ -281,12 +281,15 @@ export function Nav({
                       key={id}
                       onClick={() => setPage(id)}
                       className={clsx(
-                        "group flex items-center gap-2 pl-4 pr-2.5 py-1.5 rounded-md text-[14px] transition-all duration-150 text-left",
+                        "group relative flex items-center gap-2 pl-4 pr-2.5 py-1.5 rounded-md text-[14px] transition-all duration-150 text-left",
                         active
                           ? "bg-brand-tint text-brand-dark font-medium dark:text-white"
                           : "text-ink-muted hover:bg-surface-hover hover:text-ink",
                       )}
                     >
+                      {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-brand" />
+                      )}
                       <Icon
                         size={16}
                         className={clsx(

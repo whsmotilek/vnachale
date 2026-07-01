@@ -55,12 +55,12 @@ const config: Config = {
           strong: "rgb(var(--line-strong) / <alpha-value>)",
           soft: "rgb(var(--line-soft) / <alpha-value>)",
         },
-        // Акцент бренда — одинаковый в обеих темах.
+        // Акцент бренда — фирменный красный (штамп на вкладыше, #DA0500).
         brand: {
-          DEFAULT: "#1a0088",
-          dark: "#11005a",
-          hover: "#2410a3",
-          ring: "rgba(26, 0, 136, 0.45)",
+          DEFAULT: "#DA0500",
+          dark: "#9E0008",   // текст на светлом красном тинте — с запасом контраста
+          hover: "#B80710",
+          ring: "rgba(218, 5, 0, 0.45)",
           tint: "rgb(var(--brand-tint) / <alpha-value>)",
           tintStrong: "rgb(var(--brand-tint-strong) / <alpha-value>)",
         },
@@ -69,7 +69,7 @@ const config: Config = {
         card: "0 1px 0 rgba(15, 15, 15, 0.05), 0 1px 2px rgba(15, 15, 15, 0.04)",
         cardHover:
           "0 1px 0 rgba(15, 15, 15, 0.06), 0 4px 16px -4px rgba(15, 15, 15, 0.08)",
-        focusBrand: "0 0 0 3px rgba(26, 0, 136, 0.18)",
+        focusBrand: "0 0 0 3px rgba(218, 5, 0, 0.16)",
       },
       animation: {
         "fade-in": "fadeIn 240ms ease-out both",

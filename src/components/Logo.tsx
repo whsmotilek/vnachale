@@ -1,5 +1,6 @@
 import clsx from "clsx";
 
+/** Знак-эмблема бренда (красный штамп-квадрат с фигурой). PNG с прозрачным фоном. */
 export function Logo({
   size = 28,
   glow = false,
@@ -11,21 +12,22 @@ export function Logo({
 }) {
   return (
     <img
-      src={`${import.meta.env.BASE_URL}logo.png`}
+      src={`${import.meta.env.BASE_URL}mark.png`}
       alt="vnachale"
       width={size}
       height={size}
       draggable={false}
       className={clsx(
-        "rounded-md select-none transition-transform duration-200",
-        glow && "drop-shadow-[0_0_24px_rgba(26,0,136,0.35)]",
+        "select-none object-contain transition-transform duration-200",
+        glow && "drop-shadow-[0_0_22px_rgba(218,5,0,0.45)]",
         className,
       )}
     />
   );
 }
 
-/** Лого + словоформа "vnachale" рядом, единый компонент, чтобы переиспользовать. */
+/** Лого-локап: знак + рукописный wordmark «unachale».
+ *  Wordmark — картинка (ручная леттеринг), меняется по теме: чёрный/белый. */
 export function Brand({
   size = 26,
   glow = false,
@@ -33,19 +35,33 @@ export function Brand({
 }: {
   size?: number;
   glow?: boolean;
+  /** Оставлен для обратной совместимости вызовов; на высоту wordmark влияет size. */
   textClass?: string;
 }) {
+  void textClass;
+  const wmHeight = Math.round(size * 0.64);
   return (
     <div className="inline-flex items-center gap-2.5 select-none">
       <Logo size={size} glow={glow} />
-      <span
-        className={clsx(
-          "font-display lowercase tracking-tighter2 text-ink",
-          textClass ?? "text-[16px] font-semibold",
-        )}
-      >
-        vnachale
-      </span>
+      <picture>
+        <img
+          src={`${import.meta.env.BASE_URL}wordmark-dark.png`}
+          alt="unachale"
+          height={wmHeight}
+          style={{ height: wmHeight }}
+          draggable={false}
+          className="block dark:hidden w-auto object-contain"
+        />
+      </picture>
+      <img
+        src={`${import.meta.env.BASE_URL}wordmark-light.png`}
+        alt=""
+        aria-hidden
+        height={wmHeight}
+        style={{ height: wmHeight }}
+        draggable={false}
+        className="hidden dark:block w-auto object-contain"
+      />
     </div>
   );
 }

@@ -109,7 +109,7 @@ export function Analytics() {
               className="absolute inset-0 pointer-events-none"
               style={{
                 background:
-                  "radial-gradient(800px 240px at 0% 0%, rgba(26,0,136,0.08), transparent 60%), radial-gradient(600px 200px at 100% 100%, rgba(26,0,136,0.05), transparent 60%)",
+                  "radial-gradient(800px 240px at 0% 0%, rgba(218,5,0,0.08), transparent 60%), radial-gradient(600px 200px at 100% 100%, rgba(218,5,0,0.05), transparent 60%)",
               }}
             />
             <div className="relative p-5 lg:p-7">
