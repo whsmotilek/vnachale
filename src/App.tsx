@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Nav, type Page } from "./components/Nav";
 import { Login } from "./pages/Login";
 import { AllOrders } from "./pages/AllOrders";
+import { Kanban } from "./pages/Kanban";
 import { Orders } from "./pages/Orders";
 import { Preorders } from "./pages/Preorders";
 import { Stock } from "./pages/Stock";
@@ -79,7 +80,7 @@ function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess:
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders_all", "orders", "preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic",
+  "orders_all", "kanban", "orders", "preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic",
 ];
 
 export default function App() {
@@ -201,7 +202,9 @@ export default function App() {
       />
       <main className="flex-1 min-w-0">
         {page === "orders_all" && user.role === "owner" ? (
-          <AllOrders />
+          <AllOrders onOpenKanban={() => setPage("kanban")} />
+        ) : page === "kanban" && user.role === "owner" ? (
+          <Kanban onBack={() => setPage("orders_all")} />
         ) : page === "orders" ? (
           <Orders />
         ) : page === "preorders" ? (

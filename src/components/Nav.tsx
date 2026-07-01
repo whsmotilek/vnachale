@@ -6,7 +6,7 @@ import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders_all" | "orders" | "preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic";
+type Page = "orders_all" | "kanban" | "orders" | "preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic";
 type Role = "owner" | "manager" | "fulfillment" | "ozon" | "guest";
 type Warehouse = "our" | "ff" | "both";
 

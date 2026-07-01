@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Columns3, Search, X } from "lucide-react";
 import clsx from "clsx";
 import { api, type Order, orderWarehouse } from "../api";
 import { OrdersTable } from "../components/OrdersTable";
@@ -34,7 +34,7 @@ type WhFilter = "all" | "our" | "ff";
  * списке с бейджем + цветовой меткой склада. Удобно смотреть всё разом.
  * Детальные постраничные списки — «Заказы Склад» и «Заказы ФФ».
  */
-export function AllOrders() {
+export function AllOrders({ onOpenKanban }: { onOpenKanban?: () => void }) {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -90,12 +90,24 @@ export function AllOrders() {
 
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Заказы</h1>
-        <p className="mt-1 text-[13px] text-ink-muted">
-          Все заказы обоих складов. <span className="text-brand-dark dark:text-white font-medium">Склад</span> — наш (Tani),{" "}
-          <span className="text-amber-700 dark:text-amber-300 font-medium">ФФ</span> — фулфилмент (Татьяна).
-        </p>
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Заказы</h1>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            Все заказы обоих складов. <span className="text-brand-dark dark:text-white font-medium">Склад</span> — наш (Tani),{" "}
+            <span className="text-amber-700 dark:text-amber-300 font-medium">ФФ</span> — фулфилмент (Татьяна).
+          </p>
+        </div>
+        {onOpenKanban && (
+          <button
+            type="button"
+            onClick={onOpenKanban}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium bg-brand text-white hover:bg-brand-hover transition-colors shadow-card"
+          >
+            <Columns3 size={15} />
+            Канбан
+          </button>
+        )}
       </header>
 
       {/* Фильтр по складу */}
