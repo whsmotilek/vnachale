@@ -25,7 +25,7 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
     return (
       <div className="card p-4">
         <h2 className="text-sm font-semibold mb-3 tracking-tightish">Выручка по дням</h2>
-        <div className="text-[13px] text-ink-subtle">Нет данных за последние 30 дней.</div>
+        <div className="text-[13px] text-ink-subtle">Нет данных за выбранный период.</div>
       </div>
     );
   }
@@ -76,7 +76,10 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
       <header className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold tracking-tightish">Выручка по дням</h2>
         <div className="text-[12px] text-ink-muted">
-          30 дней · <span className="text-ink font-medium tabular-nums">{fmtRub(totalRevenue)}</span> · {totalOrders} заказ.
+          {data.length === 1
+            ? fmtDate(data[0].date)
+            : `${fmtDate(data[0].date)} – ${fmtDate(data[data.length - 1].date)}`}{" "}
+          · <span className="text-ink font-medium tabular-nums">{fmtRub(totalRevenue)}</span> · {totalOrders} заказ.
         </div>
       </header>
 
