@@ -10,9 +10,11 @@ permissions:
   pages: write
   id-token: write
 
+# Не отменяем деплой на полпути (рекомендация Pages) — иначе публикация может
+# застрять. Новые пуши ждут завершения текущего деплоя.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -44,3 +46,7 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Pages сегодня медленно разгребает очередь публикации — ждём дольше
+          # (30 мин вместо дефолтных 10), чтобы «deployment_queued» успел пройти.
+          timeout: 1800000
