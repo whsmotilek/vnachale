@@ -69,15 +69,14 @@ function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess:
   if (role === "fulfillment") {
     const our = warehouse === "our" || warehouse === "both";
     const ff = warehouse === "ff" || warehouse === "both";
-    // Менеджер обоих складов — видит общую «Заказы» (все заказы разом).
-    if (page === "orders_all") return warehouse === "both";
     if (page === "orders") return our;       // наш склад → обычные заказы
     if (page === "stock") return our;
     if (page === "preorders") return ff;     // ФФ → «Заказы ФФ»
     if (page === "stock_ff") return ff;
     return false;
   }
-  if (role === "manager") return page === "orders";
+  // Менеджер заказов: общая «Заказы» (все заказы обоих складов). Деньги/склад — нет.
+  if (role === "manager") return page === "orders_all";
   return false;
 }
 
@@ -161,8 +160,8 @@ export default function App() {
     if (!isPageAllowed(page, user.role, user.warehouse, user.ozonAccess)) {
       // ozon-менеджер начинает с аналитики Селекта
       if (user.role === "ozon") setPage("ozon");
-      // fulfillment: both → общая «Заказы», ФФ → «Заказы ФФ», наш → «Заказы»
-      else if (user.role === "fulfillment" && user.warehouse === "both") setPage("orders_all");
+      // manager → общая «Заказы»; fulfillment ФФ → «Заказы ФФ»; остальные → «Заказы»
+      else if (user.role === "manager") setPage("orders_all");
       else if (user.role === "fulfillment" && user.warehouse === "ff") setPage("preorders");
       else setPage("orders");
     }
@@ -204,8 +203,7 @@ export default function App() {
         }}
       />
       <main className="flex-1 min-w-0">
-        {page === "orders_all" &&
-        (user.role === "owner" || (user.role === "fulfillment" && user.warehouse === "both")) ? (
+        {page === "orders_all" && (user.role === "owner" || user.role === "manager") ? (
           <AllOrders onOpenKanban={user.role === "owner" ? () => setPage("kanban") : undefined} />
         ) : page === "kanban" && user.role === "owner" ? (
           <Kanban onBack={() => setPage("orders_all")} />

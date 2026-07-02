@@ -29,16 +29,32 @@ function matchesQuery(o: Order, q: string): boolean {
 
 type WhFilter = "all" | "our" | "ff";
 
+// Группы статусов для сводки «состояние заказов» + быстрый фильтр по клику.
+const STATUS_GROUPS: Array<{ key: string; label: string; set: string[]; dot: string }> = [
+  { key: "new", label: "Новые", set: ["new"], dot: "bg-amber-400" },
+  { key: "toship", label: "К отгрузке", set: ["confirmed", "in_pack"], dot: "bg-brand" },
+  { key: "shipped", label: "Отгружено", set: ["shipped"], dot: "bg-emerald-400" },
+  { key: "delivered", label: "Доставлено", set: ["delivered"], dot: "bg-emerald-600" },
+  { key: "refunded", label: "Возврат", set: ["refunded"], dot: "bg-rose-400" },
+  { key: "cancelled", label: "Отменён", set: ["cancelled"], dot: "bg-slate-400" },
+];
+const _STATUS_TO_GROUP: Record<string, string> = {};
+for (const g of STATUS_GROUPS) for (const s of g.set) _STATUS_TO_GROUP[s] = g.key;
+function statusGroup(o: Order): string {
+  return _STATUS_TO_GROUP[(o.status || "").toLowerCase().trim()] ?? "";
+}
+
 /**
- * Общая страница «Заказы» (только owner): все заказы обоих складов в одном
- * списке с бейджем + цветовой меткой склада. Удобно смотреть всё разом.
- * Детальные постраничные списки — «Заказы Склад» и «Заказы ФФ».
+ * Общая страница «Заказы» (owner + менеджер заказов): все заказы обоих складов
+ * в одном списке с бейджем + меткой склада, сводка по статусам («на что обратить
+ * внимание») и быстрый фильтр. Статусы меняются прямо в списке.
  */
 export function AllOrders({ onOpenKanban }: { onOpenKanban?: () => void }) {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [whFilter, setWhFilter] = useState<WhFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasApi) {
@@ -69,12 +85,29 @@ export function AllOrders({ onOpenKanban }: { onOpenKanban?: () => void }) {
     return { all: orders.length, our, ff };
   }, [orders]);
 
+  // Заказы выбранного склада (до статус-фильтра и поиска) — база для сводки.
+  const whFiltered = useMemo(
+    () => (orders ? orders.filter((o) => whFilter === "all" || orderWarehouse(o.items) === whFilter) : null),
+    [orders, whFilter],
+  );
+
+  // Счётчики по группам статусов в рамках выбранного склада.
+  const statusCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const g of STATUS_GROUPS) m[g.key] = 0;
+    for (const o of whFiltered ?? []) {
+      const gk = statusGroup(o);
+      if (gk) m[gk] += 1;
+    }
+    return m;
+  }, [whFiltered]);
+
   const filtered = useMemo(() => {
-    if (!orders) return null;
-    return orders
-      .filter((o) => whFilter === "all" || orderWarehouse(o.items) === whFilter)
+    if (!whFiltered) return null;
+    return whFiltered
+      .filter((o) => !statusFilter || statusGroup(o) === statusFilter)
       .filter((o) => matchesQuery(o, q));
-  }, [orders, whFilter, q]);
+  }, [whFiltered, statusFilter, q]);
 
   function updateOrder(orderId: string, patch: Partial<Order>) {
     setOrders((prev) =>
@@ -131,6 +164,51 @@ export function AllOrders({ onOpenKanban }: { onOpenKanban?: () => void }) {
           </button>
         ))}
       </div>
+
+      {/* Состояние заказов — на что обратить внимание. Клик по статусу фильтрует список. */}
+      {orders && (
+        <div className="mb-3">
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] uppercase tracking-wide text-ink-subtle font-medium mr-1">Состояние</span>
+            <button
+              type="button"
+              onClick={() => setStatusFilter(null)}
+              className={clsx(
+                "px-2.5 py-1 text-[12px] rounded-md border transition-colors",
+                statusFilter === null
+                  ? "bg-ink text-surface border-ink"
+                  : "bg-surface border-line text-ink-muted hover:bg-surface-hover hover:text-ink",
+              )}
+            >
+              Все
+            </button>
+            {STATUS_GROUPS.map((g) => (
+              <button
+                key={g.key}
+                type="button"
+                onClick={() => setStatusFilter(statusFilter === g.key ? null : g.key)}
+                className={clsx(
+                  "px-2.5 py-1 text-[12px] rounded-md border inline-flex items-center gap-1.5 transition-colors",
+                  statusFilter === g.key
+                    ? "bg-surface-hover border-line-strong text-ink font-medium"
+                    : "bg-surface border-line text-ink-muted hover:bg-surface-hover hover:text-ink",
+                )}
+              >
+                <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0", g.dot)} />
+                {g.label}
+                <span className="tabular-nums text-ink-subtle">{statusCounts[g.key] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+          {statusCounts.toship > 0 && (
+            <div className="mt-2 text-[12px] text-brand-dark dark:text-white">
+              ⚠️ <b className="tabular-nums">{statusCounts.toship}</b> оплачено и ждёт отгрузки
+              {statusCounts.new > 0 && <span className="text-ink-muted"> · новых {statusCounts.new}</span>}
+              {statusCounts.refunded > 0 && <span className="text-ink-muted"> · возвратов {statusCounts.refunded}</span>}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="relative mb-4">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft pointer-events-none" />
