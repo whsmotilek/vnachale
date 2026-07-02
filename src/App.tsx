@@ -69,6 +69,8 @@ function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess:
   if (role === "fulfillment") {
     const our = warehouse === "our" || warehouse === "both";
     const ff = warehouse === "ff" || warehouse === "both";
+    // Менеджер обоих складов — видит общую «Заказы» (все заказы разом).
+    if (page === "orders_all") return warehouse === "both";
     if (page === "orders") return our;       // наш склад → обычные заказы
     if (page === "stock") return our;
     if (page === "preorders") return ff;     // ФФ → «Заказы ФФ»
@@ -159,7 +161,8 @@ export default function App() {
     if (!isPageAllowed(page, user.role, user.warehouse, user.ozonAccess)) {
       // ozon-менеджер начинает с аналитики Селекта
       if (user.role === "ozon") setPage("ozon");
-      // fulfillment со складом ФФ начинает с «Заказы ФФ», остальные — с «Заказы»
+      // fulfillment: both → общая «Заказы», ФФ → «Заказы ФФ», наш → «Заказы»
+      else if (user.role === "fulfillment" && user.warehouse === "both") setPage("orders_all");
       else if (user.role === "fulfillment" && user.warehouse === "ff") setPage("preorders");
       else setPage("orders");
     }
@@ -201,8 +204,9 @@ export default function App() {
         }}
       />
       <main className="flex-1 min-w-0">
-        {page === "orders_all" && user.role === "owner" ? (
-          <AllOrders onOpenKanban={() => setPage("kanban")} />
+        {page === "orders_all" &&
+        (user.role === "owner" || (user.role === "fulfillment" && user.warehouse === "both")) ? (
+          <AllOrders onOpenKanban={user.role === "owner" ? () => setPage("kanban") : undefined} />
         ) : page === "kanban" && user.role === "owner" ? (
           <Kanban onBack={() => setPage("orders_all")} />
         ) : page === "orders" ? (

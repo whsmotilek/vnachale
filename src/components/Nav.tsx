@@ -51,7 +51,7 @@ const SECTIONS: NavSection[] = [
     id: "site_group",
     label: "Сайт",
     items: [
-      { id: "orders_all", label: "Заказы", Icon: LayoutGrid, roles: ["owner"] },
+      { id: "orders_all", label: "Заказы", Icon: LayoutGrid, roles: ["owner", "fulfillment"], warehouses: ["both"] },
       { id: "orders", label: "Заказы Склад", Icon: LayoutGrid, roles: ["owner", "manager", "fulfillment"], warehouses: ["our", "both"], adminOnly: true },
       { id: "preorders", label: "Заказы ФФ", Icon: Sparkles, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"], adminOnly: true },
       { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["our", "both"] },
