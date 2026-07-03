@@ -67,6 +67,20 @@ const _QTY_PRICE_RE = /(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*=\s*(\d+(?:\.\d+)?)/;
 const _QTY_ONLY_RE = /(\d+)\s*x\s*(\d+(?:\.\d+)?)/;
 const _NAME_RE = /^(.+?)(?:\s*\(|$)/;
 
+// Понятные названия по артикулу (просьба склада/ФФ). Ключ — префикс модель-цвет.
+// Матчинг склада идёт по SKU, меняем ТОЛЬКО отображаемое имя.
+const _CANON_NAMES: Record<string, string> = {
+  "KRS-PURP": "Костюм фиолетовый",
+  "KHS-GRY": "Костюм серый худи",
+  "KRB-DGR": "Костюм чёрный летний",
+};
+
+function _canonName(sku: string | null): string | null {
+  if (!sku) return null;
+  const pfx = sku.toUpperCase().split("-").slice(0, 2).join("-");
+  return _CANON_NAMES[pfx] ?? null;
+}
+
 export function parseOrderItems(itemsStr: string | null | undefined): OrderItem[] {
   if (!itemsStr) return [];
   return itemsStr.split(";")
@@ -90,6 +104,8 @@ export function parseOrderItems(itemsStr: string | null | undefined): OrderItem[
           sku = candidate;
         }
       }
+      const canon = _canonName(sku);
+      if (canon) name = canon;
       const qty = qtyPriceM ? parseInt(qtyPriceM[1], 10) : qtyOnlyM ? parseInt(qtyOnlyM[1], 10) : 1;
       const price = qtyPriceM ? parseFloat(qtyPriceM[2]) : qtyOnlyM ? parseFloat(qtyOnlyM[2]) : 0;
       const total = qtyPriceM ? parseFloat(qtyPriceM[3]) : price * qty;
