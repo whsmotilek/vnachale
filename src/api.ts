@@ -70,14 +70,25 @@ const _NAME_RE = /^(.+?)(?:\s*\(|$)/;
 // Понятные названия по артикулу (просьба склада/ФФ). Ключ — префикс модель-цвет.
 // Матчинг склада идёт по SKU, меняем ТОЛЬКО отображаемое имя.
 const _CANON_NAMES: Record<string, string> = {
-  "KRS-PURP": "Костюм фиолетовый",
-  "KHS-GRY": "Костюм серый худи",
-  "KRB-DGR": "Костюм чёрный летний",
+  // Костюмы целиком (бандлы)
+  "KRS-PURP": "Костюм фиолетовый (рубашка+шорты)",
+  "KHS-GRY": "Костюм серый (худи+шорты)",
+  "KRB-DGR": "Костюм графитовый (рубашка+брюки)",
+  // Раздельные единицы (верх/низ)
+  "KHS-GRY-TOP": "Костюм серый (худи+шорты) ХУДИ",
+  "KHS-GRY-BOT": "Костюм серый (худи+шорты) ШОРТЫ",
+  "KRB-DGR-TOP": "Костюм графитовый (рубашка+брюки) РУБАШКА",
+  "KRB-DGR-BOT": "Костюм графитовый (рубашка+брюки) БРЮКИ",
+  "KRS-PURP-TOP": "Костюм фиолетовый (рубашка+шорты) РУБАШКА",
+  "KRS-PURP-BOT": "Костюм фиолетовый (рубашка+шорты) ШОРТЫ",
 };
 
 function _canonName(sku: string | null): string | null {
   if (!sku) return null;
-  const pfx = sku.toUpperCase().split("-").slice(0, 2).join("-");
+  const p = sku.toUpperCase().split("-");
+  const pfx = (p.length >= 3 && (p[p.length - 2] === "TOP" || p[p.length - 2] === "BOT"))
+    ? p.slice(0, -1).join("-")
+    : p.slice(0, 2).join("-");
   return _CANON_NAMES[pfx] ?? null;
 }
 
