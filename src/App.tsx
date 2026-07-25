@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Nav, type Page } from "./components/Nav";
+import { Motya } from "./components/Motya";
 import { Login } from "./pages/Login";
 import { AllOrders } from "./pages/AllOrders";
 import { Kanban } from "./pages/Kanban";
@@ -235,6 +236,8 @@ export default function App() {
           <Orders />
         )}
       </main>
+      {/* Мотя — AI-ассистент. Только владельцам (API тоже закрыт require_owner). */}
+      {user.role === "owner" && <Motya />}
     </div>
   );
 }
