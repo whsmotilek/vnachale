@@ -7,11 +7,30 @@ interface Point {
 }
 
 /**
- * Линейный график выручки по дням. SVG, без зависимостей.
+ * Линейный график по дням. SVG, без зависимостей.
  * Сглаживание через monotone-cubic-like (Catmull-Rom-ish), но проще — bezier с
  * контрольными точками на половине между точками.
+ *
+ * Два режима сводки в шапке:
+ *   • "sum"  (по умолчанию) — ПОТОК: суммируем за период, показываем число заказов.
+ *     Годится для выручки: сумма дней = выручка периода.
+ *   • "last" — ЗАПАС: показываем последнее значение, без заказов.
+ *     Для баланса товара: складывать остатки по дням бессмысленно (получались
+ *     фантомные 984 млн ₽ и столько же «заказов» — баг страницы «Баланс»).
  */
-export function Sparkline({ data, height = 160 }: { data: Point[]; height?: number }) {
+export function Sparkline({
+  data,
+  height = 160,
+  title = "Выручка по дням",
+  mode = "sum",
+  valueLabel,
+}: {
+  data: Point[];
+  height?: number;
+  title?: string;
+  mode?: "sum" | "last";
+  valueLabel?: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const padTop = 16;
   const padBottom = 24;
@@ -20,11 +39,12 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
   const max = useMemo(() => Math.max(1, ...data.map((d) => d.revenue)), [data]);
   const totalRevenue = useMemo(() => data.reduce((s, d) => s + d.revenue, 0), [data]);
   const totalOrders = useMemo(() => data.reduce((s, d) => s + d.orders, 0), [data]);
+  const lastValue = data.length ? data[data.length - 1].revenue : 0;
 
   if (data.length === 0) {
     return (
       <div className="card p-4">
-        <h2 className="text-sm font-semibold mb-3 tracking-tightish">Выручка по дням</h2>
+        <h2 className="text-sm font-semibold mb-3 tracking-tightish">{title}</h2>
         <div className="text-[13px] text-ink-subtle">Нет данных за выбранный период.</div>
       </div>
     );
@@ -74,12 +94,16 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
   return (
     <div className="card p-4">
       <header className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold tracking-tightish">Выручка по дням</h2>
+        <h2 className="text-sm font-semibold tracking-tightish">{title}</h2>
         <div className="text-[12px] text-ink-muted">
           {data.length === 1
             ? fmtDate(data[0].date)
             : `${fmtDate(data[0].date)} – ${fmtDate(data[data.length - 1].date)}`}{" "}
-          · <span className="text-ink font-medium tabular-nums">{fmtRub(totalRevenue)}</span> · {totalOrders} заказ.
+          ·{" "}
+          <span className="text-ink font-medium tabular-nums">
+            {fmtRub(mode === "sum" ? totalRevenue : lastValue)}
+          </span>
+          {mode === "sum" ? ` · ${totalOrders} заказ.` : valueLabel ? ` · ${valueLabel}` : ""}
         </div>
       </header>
 
@@ -157,7 +181,8 @@ export function Sparkline({ data, height = 160 }: { data: Point[]; height?: numb
             className="absolute -translate-x-1/2 top-0 pointer-events-none bg-ink text-surface text-[11px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap tabular-nums"
             style={{ left: `${(xAt(hover) / w) * 100}%` }}
           >
-            {fmtDate(data[hover].date)} · {fmtRub(data[hover].revenue)} · {data[hover].orders} зак.
+            {fmtDate(data[hover].date)} · {fmtRub(data[hover].revenue)}
+            {mode === "sum" ? ` · ${data[hover].orders} зак.` : ""}
           </div>
         )}
 

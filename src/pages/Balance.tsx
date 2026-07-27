@@ -136,9 +136,14 @@ export function Balance() {
                         {rub(delta)}
                       </span>
                     </div>
+                    {/* Баланс — это ЗАПАС, а не поток: показываем последнее значение,
+                        а не сумму по дням (иначе выходили фантомные сотни миллионов). */}
                     <Sparkline
-                      data={data.snapshots.map((s) => ({ date: s.date, revenue: s.total, orders: s.total }))}
+                      data={data.snapshots.map((s) => ({ date: s.date, revenue: s.total, orders: 0 }))}
                       height={160}
+                      title="Капитал в товаре по дням"
+                      mode="last"
+                      valueLabel="сейчас"
                     />
                   </div>
                 );
