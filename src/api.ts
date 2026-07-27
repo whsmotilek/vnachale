@@ -320,6 +320,8 @@ export interface BalanceResponse {
     display: string;
     color: string;
     units: number;
+    /** Расшифровка для костюмов-комплектов: «495 компл. + 409 целых на Ozon». */
+    units_note?: string;
     value: number;
     frozen: boolean;
   }>;

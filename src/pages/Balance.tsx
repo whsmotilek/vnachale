@@ -196,7 +196,12 @@ export function Balance() {
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-ink-muted">{m.color}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-muted">{m.units}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-muted">
+                        {m.units}
+                        {m.units_note && (
+                          <div className="text-[10px] text-ink-subtle font-normal">{m.units_note}</div>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5 text-right tabular-nums font-medium text-ink">{rub(m.value)}</td>
                     </tr>
                   ))}
