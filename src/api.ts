@@ -70,18 +70,33 @@ const _NAME_RE = /^(.+?)(?:\s*\(|$)/;
 // Понятные названия по артикулу (просьба склада/ФФ). Ключ — префикс модель-цвет.
 // Матчинг склада идёт по SKU, меняем ТОЛЬКО отображаемое имя.
 const _CANON_NAMES: Record<string, string> = {
-  // Костюмы целиком (бандлы)
-  "KRS-PURP": "Костюм фиолетовый (рубашка+шорты)",
-  "KHS-GRY": "Костюм серый (худи+шорты)",
-  "KRB-DGR": "Костюм графитовый (рубашка+брюки)",
-  // Раздельные единицы (верх/низ)
-  "KHS-GRY-TOP": "Костюм серый (худи+шорты) ХУДИ",
-  "KHS-GRY-BOT": "Костюм серый (худи+шорты) ШОРТЫ",
-  "KRB-DGR-TOP": "Костюм графитовый (рубашка+брюки) РУБАШКА",
-  "KRB-DGR-BOT": "Костюм графитовый (рубашка+брюки) БРЮКИ",
-  "KRS-PURP-TOP": "Костюм фиолетовый (рубашка+шорты) РУБАШКА",
-  "KRS-PURP-BOT": "Костюм фиолетовый (рубашка+шорты) ШОРТЫ",
+  // Костюмы целиком — явное «ЦЕЛИКОМ», чтобы не спутать с половинкой
+  "KRS-PURP": "КОСТЮМ ЦЕЛИКОМ — фиолетовый (рубашка+шорты)",
+  "KHS-GRY": "КОСТЮМ ЦЕЛИКОМ — серый (худи+шорты)",
+  "KRB-DGR": "КОСТЮМ ЦЕЛИКОМ — графитовый (рубашка+брюки)",
+  // Половинки: предупреждение ПЕРВЫМ и капсом (28.07.2026 ФФ отгрузил костюм
+  // целиком вместо одних шорт — метка терялась в хвосте длинного имени).
+  "KHS-GRY-TOP": "ТОЛЬКО ХУДИ — от костюма серого (худи+шорты)",
+  "KHS-GRY-BOT": "ТОЛЬКО ШОРТЫ — от костюма серого (худи+шорты)",
+  "KRB-DGR-TOP": "ТОЛЬКО РУБАШКА — от костюма графитового (рубашка+брюки)",
+  "KRB-DGR-BOT": "ТОЛЬКО БРЮКИ — от костюма графитового (рубашка+брюки)",
+  "KRS-PURP-TOP": "ТОЛЬКО РУБАШКА — от костюма фиолетового (рубашка+шорты)",
+  "KRS-PURP-BOT": "ТОЛЬКО ШОРТЫ — от костюма фиолетового (рубашка+шорты)",
 };
+
+// Цвет для моделей, где он не зашит в название (спортивные костюмы, куртки…).
+const _COLOR_WORDS: Record<string, string> = {
+  BLK: "чёрный", BLACK: "чёрный", GRY: "серый", GREY: "серый",
+  WHT: "белый", WHITE: "белый", BLU: "голубой", BLUE: "голубой",
+  PUR: "фиолетовый", PURP: "фиолетовый", DGR: "графитовый",
+};
+const _COLOR_STEMS = ["черн", "сер", "бел", "голуб", "син", "фиолет", "графит"];
+
+/** Уже есть цвет в названии? (учитываем ё/е и падежи) */
+function _hasColor(name: string): boolean {
+  const n = name.toLowerCase().replace(/ё/g, "е");
+  return _COLOR_STEMS.some((st) => n.includes(st));
+}
 
 function _canonName(sku: string | null): string | null {
   if (!sku) return null;
@@ -89,7 +104,17 @@ function _canonName(sku: string | null): string | null {
   const pfx = (p.length >= 3 && (p[p.length - 2] === "TOP" || p[p.length - 2] === "BOT"))
     ? p.slice(0, -1).join("-")
     : p.slice(0, 2).join("-");
-  return _CANON_NAMES[pfx] ?? null;
+  const canon = _CANON_NAMES[pfx];
+  if (canon) return canon;
+  return null;
+}
+
+/** Дополняет имя цветом из SKU, если цвета в названии ещё нет. */
+function _withColor(name: string, sku: string | null): string {
+  if (!sku || !name || _hasColor(name)) return name;
+  const p = sku.toUpperCase().split("-");
+  const color = p.length >= 2 ? _COLOR_WORDS[p[1]] : undefined;
+  return color ? `${name} ${color}` : name;
 }
 
 export function parseOrderItems(itemsStr: string | null | undefined): OrderItem[] {
@@ -116,7 +141,8 @@ export function parseOrderItems(itemsStr: string | null | undefined): OrderItem[
         }
       }
       const canon = _canonName(sku);
-      if (canon) name = canon;
+      // Каноничное имя (костюмы) либо исходное + цвет из SKU (спортивные, куртки…)
+      name = canon ?? _withColor(name.replace(/\s*VNACHALE\s*/gi, " ").trim(), sku);
       const qty = qtyPriceM ? parseInt(qtyPriceM[1], 10) : qtyOnlyM ? parseInt(qtyOnlyM[1], 10) : 1;
       const price = qtyPriceM ? parseFloat(qtyPriceM[2]) : qtyOnlyM ? parseFloat(qtyOnlyM[2]) : 0;
       const total = qtyPriceM ? parseFloat(qtyPriceM[3]) : price * qty;
