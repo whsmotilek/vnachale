@@ -12,6 +12,7 @@ import { Balance } from "./pages/Balance";
 import { Site } from "./pages/Site";
 import { Ozon } from "./pages/Ozon";
 import { OzonTraffic } from "./pages/OzonTraffic";
+import { Hypotheses } from "./pages/Hypotheses";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
 import { getTelegramWebApp } from "./telegram";
 
@@ -64,9 +65,9 @@ function decodeJwtPayload(token: string): SessionUser | null {
 function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess: boolean): boolean {
   if (role === "owner") return true;
   // Ozon-менеджер: только аналитика и трафик Селекта.
-  if (role === "ozon") return page === "ozon" || page === "ozon_traffic";
+  if (role === "ozon") return page === "ozon" || page === "ozon_traffic" || page === "hypotheses";
   // Доп.капабилити поверх любой роли: доступ к страницам Ozon (для fulfillment).
-  if (ozonAccess && (page === "ozon" || page === "ozon_traffic")) return true;
+  if (ozonAccess && (page === "ozon" || page === "ozon_traffic" || page === "hypotheses")) return true;
   if (role === "fulfillment") {
     const our = warehouse === "our" || warehouse === "both";
     const ff = warehouse === "ff" || warehouse === "both";
@@ -82,7 +83,7 @@ function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess:
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders_all", "kanban", "orders", "preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic",
+  "orders_all", "kanban", "orders", "preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic", "hypotheses",
 ];
 
 export default function App() {
@@ -222,6 +223,8 @@ export default function App() {
           <Stock warehouse="ff" />
         ) : page === "ozon" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
           <Ozon />
+        ) : page === "hypotheses" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
+          <Hypotheses />
         ) : page === "ozon_traffic" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
           <OzonTraffic />
         ) : page === "site" && user.role === "owner" ? (

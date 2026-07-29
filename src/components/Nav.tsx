@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles, TrendingUp, Wallet,
+  Beaker, Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles, TrendingUp, Wallet,
 } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders_all" | "kanban" | "orders" | "preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic";
+type Page = "orders_all" | "kanban" | "orders" | "preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic" | "hypotheses";
 type Role = "owner" | "manager" | "fulfillment" | "ozon" | "guest";
 type Warehouse = "our" | "ff" | "both";
 
@@ -67,6 +67,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { id: "ozon", label: "Аналитика", Icon: Sparkles, roles: ["owner", "ozon"] },
       { id: "ozon_traffic", label: "Трафик", Icon: TrendingUp, roles: ["owner", "ozon"] },
+      { id: "hypotheses", label: "Гипотезы", Icon: Beaker, roles: ["owner", "ozon"] },
     ],
   },
 ];
@@ -78,7 +79,7 @@ function visibleSections(role: Role, warehouse: Warehouse, isAdmin: boolean, ozo
   const out: NavSection[] = [];
   for (const s of SECTIONS) {
     const items = s.items.filter((it) => {
-      const isOzonPage = it.id === "ozon" || it.id === "ozon_traffic";
+      const isOzonPage = it.id === "ozon" || it.id === "ozon_traffic" || it.id === "hypotheses";
       if (it.roles && !it.roles.includes(role)) {
         // Доп.капабилити: страницы Ozon видны при ozonAccess поверх любой роли.
         if (!(isOzonPage && ozonAccess)) return false;

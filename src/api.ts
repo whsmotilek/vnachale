@@ -592,6 +592,45 @@ export interface OzonAnalyticsResponse {
 
 // === методы ===
 
+
+// --- Гипотезы (Селект → Гипотезы) ---
+export interface HypMetricPhase {
+  revenue?: number; orders?: number; views?: number; sessions?: number;
+  carts?: number; ad_spent?: number; ctr?: number; drr?: number;
+}
+export interface Hypothesis {
+  id: string;
+  created_at: string;
+  author: string;
+  product: string;
+  skus: string[];
+  action_type: string;
+  object: string;
+  comment: string;
+  window_days: number;
+  check_at: string;
+  status: string;
+  verdict: string;
+  effect_rub: number;
+  overlap_ids: string;
+  auto_detected: boolean;
+  closed_at: string;
+  verdict_text: string;
+  metrics: { before?: HypMetricPhase; after?: HypMetricPhase };
+}
+export interface HypByAction { action: string; total: number; worked: number; effect: number }
+export interface HypStats {
+  active: number; done: number; worked: number; failed: number;
+  unclear: number; no_data: number; effect_total: number; by_action: HypByAction[];
+}
+export interface HypEvent { date: string; sku: string; field: string }
+export interface HypothesesResponse {
+  items: Hypothesis[];
+  stats: HypStats;
+  events?: HypEvent[];
+  note?: string;
+}
+
 export const api = {
   async authTelegram(payload: Record<string, unknown>): Promise<{ token: string }> {
     return request("/auth/telegram", { method: "POST", body: JSON.stringify(payload) });
@@ -672,6 +711,9 @@ export const api = {
   },
   async inventoryBalance(): Promise<BalanceResponse> {
     return request(`/inventory/balance?_t=${Date.now()}`);
+  },
+  async hypotheses(): Promise<HypothesesResponse> {
+    return request(`/hypotheses?_t=${Date.now()}`);
   },
   async ozonDashboard(periodFrom?: string, periodTo?: string): Promise<OzonDashboard> {
     const p = new URLSearchParams();
