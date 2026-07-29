@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
 import {
-  Beaker, CalendarClock, Check, ChevronRight, Sparkles, TrendingUp, X,
+  Beaker, CalendarClock, Filter, Sparkles, ThumbsDown, ThumbsUp,
+  TrendingUp, X,
 } from "lucide-react";
 import { api, type Hypothesis, type HypothesesResponse } from "../api";
 import { StatCard } from "../components/StatCard";
@@ -21,6 +22,12 @@ function fmtNum(n: number): string {
 function fmtRub(n: number): string {
   return `${n > 0 ? "+" : ""}${fmtNum(n)} ₽`;
 }
+function fmtShortRub(n: number): string {
+  const a = Math.abs(n);
+  if (a >= 1_000_000) return `${n > 0 ? "+" : "−"}${(a / 1_000_000).toFixed(1)} млн ₽`;
+  if (a >= 1000) return `${n > 0 ? "+" : "−"}${Math.round(a / 1000)} тыс ₽`;
+  return fmtRub(n);
+}
 function fmtDate(iso: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -29,13 +36,24 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
 }
 
-/** Цвет по вердикту: смысл читается до текста. */
-function verdictTone(v: string): string {
-  if (v.includes("НЕ СРАБОТАЛО")) return "text-rose-600 dark:text-rose-400";
-  if (v.includes("СРАБОТАЛО")) return "text-emerald-600 dark:text-emerald-400";
-  if (v.includes("НЕОДНОЗНАЧНО")) return "text-amber-600 dark:text-amber-400";
-  return "text-ink-muted";
+type Kind = "ok" | "bad" | "unclear" | "nodata" | "running";
+
+function kindOf(h: Hypothesis): Kind {
+  if (h.status === "активна") return "running";
+  const v = h.verdict || "";
+  if (v.includes("НЕ СРАБОТАЛО")) return "bad";
+  if (v.includes("СРАБОТАЛО")) return "ok";
+  if (v.includes("НЕДОСТАТОЧНО")) return "nodata";
+  return "unclear";
 }
+
+const KIND_META: Record<Kind, { dot: string; text: string; label: string }> = {
+  ok: { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", label: "Сработало" },
+  bad: { dot: "bg-rose-500", text: "text-rose-600 dark:text-rose-400", label: "Не сработало" },
+  unclear: { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400", label: "Неоднозначно" },
+  nodata: { dot: "bg-neutral-400", text: "text-ink-muted", label: "Мало данных" },
+  running: { dot: "bg-brand", text: "text-brand", label: "Идёт" },
+};
 
 function daysLeft(checkAt: string): string {
   if (!checkAt) return "";
@@ -47,37 +65,80 @@ function daysLeft(checkAt: string): string {
   return `через ${diff} дн.`;
 }
 
-const METRIC_ROWS: Array<{ key: keyof NonNullable<Hypothesis["metrics"]["before"]>; label: string; unit?: string }> = [
+const METRIC_ROWS = [
   { key: "revenue", label: "Выручка", unit: " ₽" },
-  { key: "orders", label: "Заказы" },
-  { key: "views", label: "Показы" },
-  { key: "sessions", label: "В карточку" },
-  { key: "carts", label: "Корзины" },
+  { key: "orders", label: "Заказы", unit: "" },
+  { key: "views", label: "Показы", unit: "" },
+  { key: "sessions", label: "Переходы в карточку", unit: "" },
+  { key: "carts", label: "Корзины", unit: "" },
   { key: "ctr", label: "CTR", unit: " %" },
+  { key: "ad_spent", label: "Расход рекламы", unit: " ₽" },
   { key: "drr", label: "ДРР", unit: " %" },
-];
+] as const;
+
+/** Текст вердикта приходит с telegram-разметкой: моноширинный блок с таблицей
+ *  нельзя показывать обычным шрифтом — колонки разъезжаются. */
+function VerdictText({ raw }: { raw: string }) {
+  const blocks = raw.split(/<\/?code>/g);
+  return (
+    <div className="space-y-2 text-[13px] leading-relaxed">
+      {blocks.map((b, i) => {
+        const clean = b.replace(/<[^>]+>/g, "").trim();
+        if (!clean) return null;
+        return i % 2 === 1 ? (
+          <pre key={i} className="overflow-x-auto rounded-lg bg-black/[.04] p-2.5 font-mono text-[11.5px] leading-snug dark:bg-white/[.07]">
+            {clean}
+          </pre>
+        ) : (
+          <p key={i} className="whitespace-pre-wrap">{clean}</p>
+        );
+      })}
+    </div>
+  );
+}
 
 function Detail({ h, onClose }: { h: Hypothesis; onClose: () => void }) {
-  const b = h.metrics?.before;
-  const a = h.metrics?.after;
+  const b = h.metrics?.before as Record<string, number> | undefined;
+  const a = h.metrics?.after as Record<string, number> | undefined;
+  const k = kindOf(h);
   return createPortal(
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="card max-h-[85vh] w-full max-w-2xl overflow-y-auto p-5"
+        className="card max-h-[88vh] w-full max-w-2xl overflow-y-auto p-4 sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs text-ink-muted">
               #{h.id} · {h.author} · {fmtDate(h.created_at)}
               {h.auto_detected && " · найдено автоматически"}
             </div>
-            <h3 className="text-lg font-semibold">{h.product}</h3>
+            <h3 className="truncate text-lg font-semibold">{h.product}</h3>
             <div className="text-sm text-ink-muted">{h.object}</div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10">
+          <button onClick={onClose} className="shrink-0 rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10">
             <X className="h-5 w-5" />
           </button>
+        </div>
+
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className={clsx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+            "bg-black/[.04] dark:bg-white/[.08]", KIND_META[k].text)}>
+            <span className={clsx("h-1.5 w-1.5 rounded-full", KIND_META[k].dot)} />
+            {KIND_META[k].label}
+          </span>
+          {h.status !== "активна" && h.effect_rub !== 0 && (
+            <span className={clsx("text-sm font-semibold tabular-nums",
+              h.effect_rub > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+              {fmtRub(h.effect_rub)}
+            </span>
+          )}
+          {h.status === "активна" && (
+            <span className="text-sm text-ink-muted">
+              проверка {fmtDate(h.check_at)} — {daysLeft(h.check_at)}
+            </span>
+          )}
+          <span className="text-xs text-ink-muted">окно {h.window_days} дн.</span>
         </div>
 
         {h.comment && (
@@ -85,18 +146,6 @@ function Detail({ h, onClose }: { h: Hypothesis; onClose: () => void }) {
             «{h.comment}»
           </div>
         )}
-
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <span className={clsx("font-semibold", verdictTone(h.verdict))}>
-            {h.verdict || "тест идёт"}
-          </span>
-          {h.status === "завершена" && h.effect_rub !== 0 && (
-            <span className="tabular-nums font-medium">{fmtRub(h.effect_rub)}</span>
-          )}
-          {h.status === "активна" && (
-            <span className="text-ink-muted">проверка {fmtDate(h.check_at)} — {daysLeft(h.check_at)}</span>
-          )}
-        </div>
 
         <div className="mb-3 flex flex-wrap gap-1">
           {h.skus.map((s) => (
@@ -122,13 +171,13 @@ function Detail({ h, onClose }: { h: Hypothesis; onClose: () => void }) {
                   const bv = b?.[key];
                   const av = a?.[key];
                   if (bv === undefined && av === undefined) return null;
-                  const delta = bv && av ? ((av - bv) / bv) * 100 : null;
+                  const delta = bv ? ((av ?? 0) - bv) / bv * 100 : null;
                   return (
                     <tr key={key} className="border-t border-black/5 dark:border-white/5">
                       <td className="py-1.5">{label}</td>
-                      <td className="py-1.5 text-right">{bv === undefined ? "—" : fmtNum(bv) + (unit ?? "")}</td>
-                      <td className="py-1.5 text-right">{av === undefined ? "—" : fmtNum(av) + (unit ?? "")}</td>
-                      <td className={clsx("py-1.5 text-right",
+                      <td className="py-1.5 text-right">{bv === undefined ? "—" : fmtNum(bv) + unit}</td>
+                      <td className="py-1.5 text-right">{av === undefined ? "—" : fmtNum(av) + unit}</td>
+                      <td className={clsx("py-1.5 text-right font-medium",
                         delta !== null && delta > 0 && "text-emerald-600 dark:text-emerald-400",
                         delta !== null && delta < 0 && "text-rose-600 dark:text-rose-400")}>
                         {delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(0)}%`}
@@ -141,11 +190,7 @@ function Detail({ h, onClose }: { h: Hypothesis; onClose: () => void }) {
           </div>
         )}
 
-        {h.verdict_text && (
-          <div className="whitespace-pre-wrap rounded-lg bg-black/[.03] p-3 text-[13px] leading-relaxed dark:bg-white/[.06]">
-            {h.verdict_text.replace(/<[^>]+>/g, "")}
-          </div>
-        )}
+        {h.verdict_text && <VerdictText raw={h.verdict_text} />}
       </div>
     </div>,
     document.body,
@@ -157,7 +202,8 @@ export function Hypotheses() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState<Hypothesis | null>(null);
-  const [tab, setTab] = useState<"active" | "done">("active");
+  const [filter, setFilter] = useState<Kind | "all">("all");
+  const [product, setProduct] = useState<string>("all");
 
   useEffect(() => {
     if (!hasApi) { setLoading(false); return; }
@@ -175,14 +221,58 @@ export function Hypotheses() {
     return () => { alive = false; };
   }, []);
 
-  const active = useMemo(() => data?.items.filter((i) => i.status === "активна") ?? [], [data]);
-  const done = useMemo(() => data?.items.filter((i) => i.status !== "активна") ?? [], [data]);
+  const items = data?.items ?? [];
   const s = data?.stats;
+
+  /** Сводка по товарам: где тестировали и что из этого вышло. */
+  const byProduct = useMemo(() => {
+    const m = new Map<string, { product: string; total: number; ok: number; effect: number }>();
+    for (const h of items) {
+      if (h.status === "активна") continue;
+      const e = m.get(h.product) ?? { product: h.product, total: 0, ok: 0, effect: 0 };
+      e.total += 1;
+      if (kindOf(h) === "ok") e.ok += 1;
+      e.effect += h.effect_rub;
+      m.set(h.product, e);
+    }
+    return [...m.values()].sort((x, y) => y.effect - x.effect);
+  }, [items]);
+
+  const best = useMemo(
+    () => items.filter((h) => kindOf(h) === "ok").sort((a, b) => b.effect_rub - a.effect_rub).slice(0, 3),
+    [items],
+  );
+  const worst = useMemo(
+    () => items.filter((h) => kindOf(h) === "bad").sort((a, b) => a.effect_rub - b.effect_rub).slice(0, 3),
+    [items],
+  );
+
+  const products = useMemo(
+    () => [...new Set(items.map((h) => h.product))].sort(),
+    [items],
+  );
+
+  const shown = useMemo(
+    () => items.filter((h) =>
+      (filter === "all" || kindOf(h) === filter) &&
+      (product === "all" || h.product === product)),
+    [items, filter, product],
+  );
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: items.length };
+    for (const h of items) {
+      const k = kindOf(h);
+      c[k] = (c[k] ?? 0) + 1;
+    }
+    return c;
+  }, [items]);
 
   if (loading) return <StatCardsSkeleton />;
   if (err) return <div className="card p-4 text-sm text-rose-600">{err}</div>;
 
-  const empty = !data?.items.length;
+  const empty = items.length === 0;
+  const successRate = s && s.done ? Math.round((s.worked / s.done) * 100) : null;
 
   return (
     <div className="space-y-4">
@@ -195,22 +285,20 @@ export function Hypotheses() {
 
       {s && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Тестов идёт" value={s.active} accent={s.active > 0} />
-          <StatCard label="Завершено" value={s.done} hint={s.done ? `сработало ${s.worked}` : undefined} />
-          <StatCard
-            label="Сработало"
-            value={s.done ? `${Math.round((s.worked / s.done) * 100)}%` : "—"}
-            hint={s.done ? `${s.worked} из ${s.done}` : "пока нет данных"}
-          />
-          <StatCard
-            label="Эффект накоплен"
-            value={s.effect_total ? fmtRub(s.effect_total) : "—"}
-            accent={s.effect_total > 0}
-          />
+          <StatCard label="Тестов идёт" value={s.active} accent={s.active > 0}
+                    hint={s.active ? "проверю сам по окончании окна" : "заведи в боте"} />
+          <StatCard label="Завершено" value={s.done}
+                    hint={s.done ? `🟢 ${s.worked} · 🔴 ${s.failed} · 🟡 ${s.unclear}` : undefined} />
+          <StatCard label="Доля удачных" value={successRate === null ? "—" : `${successRate}%`}
+                    hint={s.done ? `${s.worked} из ${s.done}` : "пока нет данных"} />
+          <StatCard label="Эффект накоплен"
+                    value={s.effect_total ? fmtShortRub(s.effect_total) : "—"}
+                    accent={s.effect_total > 0}
+                    hint="сумма чистых эффектов" />
         </div>
       )}
 
-      {empty && (
+      {empty ? (
         <div className="card p-6 text-center">
           <Beaker className="mx-auto mb-2 h-8 w-8 text-ink-muted" />
           <div className="font-medium">Пока ни одной гипотезы</div>
@@ -220,60 +308,122 @@ export function Hypotheses() {
             система снимет сама.
           </p>
         </div>
-      )}
-
-      {!empty && (
+      ) : (
         <>
-          <div className="flex gap-1 rounded-xl bg-black/[.04] p-1 dark:bg-white/[.06]">
-            {([["active", `Идут (${active.length})`], ["done", `Завершённые (${done.length})`]] as const).map(
-              ([k, label]) => (
-                <button
-                  key={k}
-                  onClick={() => setTab(k)}
-                  className={clsx(
-                    "flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                    tab === k ? "bg-white shadow-sm dark:bg-neutral-800" : "text-ink-muted",
-                  )}
-                >
-                  {label}
-                </button>
-              ),
+          {(best.length > 0 || worst.length > 0) && (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {best.length > 0 && (
+                <div className="card p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ThumbsUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <h2 className="text-sm font-medium">Лучшие тесты</h2>
+                  </div>
+                  <div className="space-y-1.5">
+                    {best.map((h) => (
+                      <button key={h.id} onClick={() => setOpen(h)}
+                        className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-sm hover:bg-black/[.03] dark:hover:bg-white/[.06]">
+                        <span className="min-w-0 flex-1 truncate">{h.product} · <span className="text-ink-muted">{h.object}</span></span>
+                        <span className="shrink-0 font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                          {fmtShortRub(h.effect_rub)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {worst.length > 0 && (
+                <div className="card p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ThumbsDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                    <h2 className="text-sm font-medium">Что не сработало</h2>
+                  </div>
+                  <div className="space-y-1.5">
+                    {worst.map((h) => (
+                      <button key={h.id} onClick={() => setOpen(h)}
+                        className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-sm hover:bg-black/[.03] dark:hover:bg-white/[.06]">
+                        <span className="min-w-0 flex-1 truncate">{h.product} · <span className="text-ink-muted">{h.object}</span></span>
+                        <span className="shrink-0 font-medium tabular-nums text-rose-600 dark:text-rose-400">
+                          {fmtShortRub(h.effect_rub)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="card p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs text-ink-muted">
+              <Filter className="h-3.5 w-3.5" /> Фильтр
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {([["all", `Все (${counts.all})`],
+                 ["running", `Идут (${counts.running ?? 0})`],
+                 ["ok", `🟢 Сработало (${counts.ok ?? 0})`],
+                 ["bad", `🔴 Нет (${counts.bad ?? 0})`],
+                 ["unclear", `🟡 Спорно (${counts.unclear ?? 0})`],
+                 ["nodata", `⚪ Мало данных (${counts.nodata ?? 0})`]] as const)
+                .filter(([k]) => k === "all" || (counts[k] ?? 0) > 0)
+                .map(([k, label]) => (
+                  <button key={k} onClick={() => setFilter(k as Kind | "all")}
+                    className={clsx("rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      filter === k ? "bg-brand text-white" : "bg-black/[.05] hover:bg-black/[.09] dark:bg-white/[.08] dark:hover:bg-white/[.14]")}>
+                    {label}
+                  </button>
+                ))}
+            </div>
+            {products.length > 1 && (
+              <select value={product} onChange={(e) => setProduct(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-sm dark:border-white/15 sm:w-64">
+                <option value="all">Все товары</option>
+                {products.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
             )}
           </div>
 
           <div className="space-y-2">
-            {(tab === "active" ? active : done).map((h) => (
-              <button
-                key={h.id}
-                onClick={() => setOpen(h)}
-                className="card card-hover flex w-full items-center gap-3 p-3 text-left"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-ink-muted">#{h.id}</span>
-                    <span className="truncate font-medium">{h.product}</span>
-                    {h.auto_detected && <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand" />}
+            {shown.length === 0 && (
+              <div className="card p-4 text-center text-sm text-ink-muted">
+                Под фильтр ничего не попало.
+              </div>
+            )}
+            {shown.map((h) => {
+              const k = kindOf(h);
+              return (
+                <button key={h.id} onClick={() => setOpen(h)}
+                  className="card card-hover flex w-full items-start gap-3 p-3 text-left">
+                  <span className={clsx("mt-1.5 h-2 w-2 shrink-0 rounded-full", KIND_META[k].dot)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-ink-muted">#{h.id}</span>
+                      <span className="truncate font-medium">{h.product}</span>
+                      {h.auto_detected && <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand" />}
+                    </div>
+                    <div className="truncate text-sm text-ink-muted">{h.object}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3" />
+                        {h.status === "активна"
+                          ? `проверка ${fmtDate(h.check_at)} — ${daysLeft(h.check_at)}`
+                          : fmtDate(h.created_at)}
+                      </span>
+                      <span>· {h.skus.length} SKU</span>
+                      {h.overlap_ids && <span className="text-amber-600 dark:text-amber-400">· пересечение</span>}
+                    </div>
                   </div>
-                  <div className="truncate text-sm text-ink-muted">{h.object}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-muted">
-                    <CalendarClock className="h-3 w-3" />
-                    {h.status === "активна"
-                      ? `проверка ${fmtDate(h.check_at)} — ${daysLeft(h.check_at)}`
-                      : `завершён ${fmtDate(h.closed_at)}`}
-                    <span className="text-ink-muted/60">· {h.skus.length} SKU</span>
+                  <div className="shrink-0 text-right">
+                    <div className={clsx("text-xs font-medium", KIND_META[k].text)}>{KIND_META[k].label}</div>
+                    {h.status !== "активна" && h.effect_rub !== 0 && (
+                      <div className={clsx("text-sm font-semibold tabular-nums",
+                        h.effect_rub > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        {fmtShortRub(h.effect_rub)}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className={clsx("text-sm font-semibold", verdictTone(h.verdict))}>
-                    {h.verdict ? h.verdict.split(" ")[0] : "🟡"}
-                  </div>
-                  {h.status !== "активна" && h.effect_rub !== 0 && (
-                    <div className="text-xs tabular-nums text-ink-muted">{fmtRub(h.effect_rub)}</div>
-                  )}
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </>
       )}
@@ -282,49 +432,78 @@ export function Hypotheses() {
         <div className="card p-4">
           <div className="mb-3 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-brand" />
-            <h2 className="font-medium">Что срабатывало</h2>
+            <h2 className="font-medium">Что срабатывало — по типам изменений</h2>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {s.by_action.map((a) => (
-              <div key={a.action} className="flex items-center gap-3 text-sm">
-                <span className="w-40 shrink-0 truncate">{a.action}</span>
+              <div key={a.action} className="flex items-center gap-2 text-sm sm:gap-3">
+                <span className="w-28 shrink-0 truncate sm:w-40">{a.action}</span>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[.06] dark:bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-brand"
-                    style={{ width: `${a.total ? (a.worked / a.total) * 100 : 0}%` }}
-                  />
+                  <div className="h-full rounded-full bg-brand"
+                       style={{ width: `${a.total ? (a.worked / a.total) * 100 : 0}%` }} />
                 </div>
-                <span className="w-16 shrink-0 text-right tabular-nums text-ink-muted">
+                <span className="w-12 shrink-0 text-right tabular-nums text-xs text-ink-muted">
                   {a.worked}/{a.total}
                 </span>
-                <span className="w-24 shrink-0 text-right tabular-nums">{fmtRub(a.effect)}</span>
+                <span className={clsx("w-20 shrink-0 text-right text-xs tabular-nums sm:w-24",
+                  a.effect > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                  {fmtShortRub(a.effect)}
+                </span>
               </div>
             ))}
           </div>
           <p className="mt-3 text-xs text-ink-muted">
-            Доля тестов, признанных удачными, и суммарный эффект по каждому типу изменений.
+            Доля тестов, признанных удачными, и суммарный чистый эффект по каждому типу.
           </p>
+        </div>
+      )}
+
+      {byProduct.length > 0 && (
+        <div className="card p-4">
+          <h2 className="mb-3 font-medium">Что срабатывало — по товарам</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-ink-muted">
+                  <th className="pb-1.5 font-medium">товар</th>
+                  <th className="pb-1.5 text-right font-medium">тестов</th>
+                  <th className="pb-1.5 text-right font-medium">удачных</th>
+                  <th className="pb-1.5 text-right font-medium">эффект</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byProduct.map((p) => (
+                  <tr key={p.product} className="border-t border-black/5 dark:border-white/5">
+                    <td className="py-1.5 pr-2">{p.product}</td>
+                    <td className="py-1.5 text-right tabular-nums">{p.total}</td>
+                    <td className="py-1.5 text-right tabular-nums">{p.ok}</td>
+                    <td className={clsx("py-1.5 text-right font-medium tabular-nums",
+                      p.effect > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                      {fmtShortRub(p.effect)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {data?.events && data.events.length > 0 && (
         <div className="card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Check className="h-4 w-4 text-ink-muted" />
-            <h2 className="font-medium">Правки карточек</h2>
-          </div>
+          <h2 className="mb-3 font-medium">Правки карточек</h2>
           <div className="max-h-64 space-y-1 overflow-y-auto text-sm">
             {data.events.map((e, i) => (
               <div key={i} className="flex items-center gap-2 border-b border-black/5 py-1 last:border-0 dark:border-white/5">
-                <span className="w-14 shrink-0 text-xs text-ink-muted">{e.date.slice(5)}</span>
-                <span className="w-40 shrink-0 truncate font-mono text-[11px]">{e.sku}</span>
+                <span className="w-12 shrink-0 text-xs text-ink-muted">{e.date.slice(5)}</span>
+                <span className="w-36 shrink-0 truncate font-mono text-[11px]">{e.sku}</span>
                 <span className="truncate text-ink-muted">{e.field}</span>
               </div>
             ))}
           </div>
           <p className="mt-2 text-xs text-ink-muted">
-            Система снимает состав карточек ежедневно. Эти правки учитываются как
-            конкурирующие причины, если попадают в окно теста.
+            Состав карточек снимается ежедневно. Эти правки учитываются как конкурирующие
+            причины, если попали в окно теста.
           </p>
         </div>
       )}
