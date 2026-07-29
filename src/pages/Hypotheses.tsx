@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
 import {
-  Beaker, CalendarClock, Filter, Sparkles, ThumbsDown, ThumbsUp,
+  Archive, Beaker, CalendarClock, Filter, Sparkles, ThumbsDown, ThumbsUp,
   TrendingUp, X,
 } from "lucide-react";
 import { api, type Hypothesis, type HypothesesResponse } from "../api";
@@ -399,6 +399,9 @@ export function Hypotheses() {
                       <span className="text-xs text-ink-muted">#{h.id}</span>
                       <span className="truncate font-medium">{h.product}</span>
                       {h.auto_detected && <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand" />}
+                      {h.source === "retro" && (
+                        <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">перенос</span>
+                      )}
                     </div>
                     <div className="truncate text-sm text-ink-muted">{h.object}</div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
@@ -486,6 +489,53 @@ export function Hypotheses() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {s?.retro && (
+        <div className="card border-amber-500/25 p-4">
+          <div className="mb-1 flex items-center gap-2">
+            <Archive className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <h2 className="font-medium">Перенос из старой таблицы</h2>
+          </div>
+          <p className="mb-3 text-xs text-ink-muted">
+            {s.retro.total} записей за {fmtDate(s.retro.period[0])} — {fmtDate(s.retro.period[1])}.
+            Метрики пересчитаны задним числом, поэтому в общую статистику выше они не входят:
+            в те дни неизвестно, что ещё менялось, и часть движения — это сезон, а не тест.
+            Смотреть стоит на <b>структуру</b> — что чаще тестировали, — а не на итоговую сумму.
+          </p>
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([["Записей", s.retro.total, ""],
+               ["🟢 Сработало", s.retro.worked, "text-emerald-600 dark:text-emerald-400"],
+               ["🔴 Нет", s.retro.failed, "text-rose-600 dark:text-rose-400"],
+               ["🟡 Спорно", s.retro.unclear, "text-amber-600 dark:text-amber-400"]] as const).map(
+              ([label, val, cls]) => (
+                <div key={label} className="rounded-lg bg-black/[.03] px-2.5 py-1.5 dark:bg-white/[.06]">
+                  <div className="text-[11px] text-ink-muted">{label}</div>
+                  <div className={clsx("text-lg font-semibold tabular-nums", cls)}>{val}</div>
+                </div>
+              ),
+            )}
+          </div>
+          <div className="space-y-2">
+            {s.retro.by_action.map((a) => (
+              <div key={a.action} className="flex items-center gap-2 text-sm sm:gap-3">
+                <span className="w-28 shrink-0 truncate sm:w-40">{a.action}</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[.06] dark:bg-white/10">
+                  <div className="h-full rounded-full bg-amber-500"
+                       style={{ width: `${a.total ? (a.worked / a.total) * 100 : 0}%` }} />
+                </div>
+                <span className="w-12 shrink-0 text-right text-xs tabular-nums text-ink-muted">
+                  {a.worked}/{a.total}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-ink-muted">
+            Главное, что видно: <b>реклама — 19 из 56 записей</b>, но удачных среди них лишь
+            {" "}{s.retro.by_action.find((a) => a.action.includes("Реклама"))?.worked ?? 0}.
+            Дальше сравнение пойдёт уже на живых тестах, где известно окно и контроль.
+          </p>
         </div>
       )}
 

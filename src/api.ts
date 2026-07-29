@@ -614,14 +614,20 @@ export interface Hypothesis {
   effect_rub: number;
   overlap_ids: string;
   auto_detected: boolean;
+  source: "live" | "auto" | "retro";
   closed_at: string;
   verdict_text: string;
   metrics: { before?: HypMetricPhase; after?: HypMetricPhase };
 }
 export interface HypByAction { action: string; total: number; worked: number; effect: number }
+export interface HypRetro {
+  total: number; worked: number; failed: number; unclear: number;
+  effect_total: number; by_action: HypByAction[]; period: [string, string];
+}
 export interface HypStats {
   active: number; done: number; worked: number; failed: number;
   unclear: number; no_data: number; effect_total: number; by_action: HypByAction[];
+  retro?: HypRetro;
 }
 export interface HypEvent { date: string; sku: string; field: string }
 export interface HypothesesResponse {
