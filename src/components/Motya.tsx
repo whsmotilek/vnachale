@@ -1,9 +1,10 @@
-/** Мотя — AI-ассистент владельцев.
+/** Мотя — внутренний AI-ассистент.
  *
  * Виджет-чат: пузырь справа-снизу, на десктопе — плавающее окно, на мобиле
  * (в т.ч. внутри Telegram Mini App) — лист на весь экран.
  * Общается с /assistant/chat: SSE-поток (tool → text-дельты → done).
- * Рендерится только для role=owner (проверка на стороне App + require_owner в API).
+ * Доступен рабочим ролям; какие данные видны — решает API (assistant.ROLE_TOOLS).
+ * Роль здесь нужна только для подсказок в интерфейсе.
  */
 import { useEffect, useRef, useState } from "react";
 import { env } from "../env";
@@ -20,17 +21,44 @@ const TOOL_LABELS: Record<string, string> = {
   get_orders: "Смотрю заказы",
   get_ozon_dashboard: "Открываю аналитику Ozon",
   get_ozon_cards: "Проверяю карточки Ozon",
+  get_ozon_campaigns: "Смотрю настройки рекламы",
   get_stock: "Смотрю остатки на складах",
   get_balance: "Считаю баланс товара",
   get_site_traffic: "Читаю трафик сайта",
 };
 
-const SUGGESTIONS = [
-  { icon: "📊", text: "Выручка за неделю", q: "Какая выручка сайта и Ozon за последнюю неделю?" },
-  { icon: "📦", text: "Что довезти на Ozon", q: "Что срочно нужно довезти на Ozon? Проверь остатки и скорость продаж." },
-  { icon: "🔍", text: "Проблемные карточки", q: "Какие карточки на Ozon проседают и что с ними делать?" },
-  { icon: "💰", text: "Баланс товара", q: "Сколько денег сейчас вложено в товар и что заморожено?" },
-];
+interface Suggestion { icon: string; text: string; q: string }
+
+/** Подсказки под роль: предлагаем только то, на что у человека есть данные. */
+const SUGGESTIONS_BY_ROLE: Record<string, Suggestion[]> = {
+  owner: [
+    { icon: "📊", text: "Выручка за неделю", q: "Какая выручка сайта и Ozon за последнюю неделю?" },
+    { icon: "📦", text: "Что довезти на Ozon", q: "Что срочно нужно довезти на Ozon? Проверь остатки и скорость продаж." },
+    { icon: "🔍", text: "Проблемные карточки", q: "Какие карточки на Ozon проседают и что с ними делать?" },
+    { icon: "💰", text: "Баланс товара", q: "Сколько денег сейчас вложено в товар и что заморожено?" },
+  ],
+  ozon: [
+    { icon: "🔍", text: "Что проседает", q: "Какие артикулы просели за неделю и почему? Проверь состав роста — кто кого вытеснил." },
+    { icon: "🎯", text: "Реклама по стратегиям", q: "Покажи запущенные кампании: где автостратегия, где ручная ставка, где целевой расход. Есть ли кампании с расходом и нулём продаж?" },
+    { icon: "📉", text: "Обвал CTR", q: "У каких артикулов CTR упал вдвое и больше? Свяжи с продажами." },
+    { icon: "⚠️", text: "Риск дефицита", q: "Каким артикулам не хватит остатка при текущем темпе продаж?" },
+  ],
+  fulfillment: [
+    { icon: "📦", text: "Что отгружать", q: "Какие заказы сейчас нужно собрать и отгрузить?" },
+    { icon: "🔎", text: "Проверить наличие", q: "Что заканчивается на складах? Покажи позиции с малым остатком." },
+  ],
+  manager: [
+    { icon: "📋", text: "Новые заказы", q: "Покажи последние заказы и их статусы." },
+    { icon: "⚠️", text: "Требуют внимания", q: "Какие заказы зависли или требуют внимания?" },
+  ],
+};
+
+const PLACEHOLDER_BY_ROLE: Record<string, string> = {
+  owner: "Спросите про заказы, Ozon, склад…",
+  ozon: "Спросите про артикулы, рекламу, конверсии…",
+  fulfillment: "Спросите про заказы и остатки…",
+  manager: "Спросите про заказы и статусы…",
+};
 
 /** Мини-рендер markdown: **жирный**, списки, таблицы, заголовки. */
 function renderMarkdown(md: string): string {
@@ -89,7 +117,9 @@ function renderMarkdown(md: string): string {
   return out.join("");
 }
 
-export function Motya() {
+export function Motya({ role = "owner" }: { role?: string }) {
+  const suggestions = SUGGESTIONS_BY_ROLE[role] ?? SUGGESTIONS_BY_ROLE.owner;
+  const placeholder = PLACEHOLDER_BY_ROLE[role] ?? PLACEHOLDER_BY_ROLE.owner;
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -317,7 +347,7 @@ export function Motya() {
           {/* Подсказки */}
           {msgs.length === 0 && (
             <div className="flex flex-wrap gap-2 px-4 pb-3 shrink-0">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button key={s.text} onClick={() => send(s.q)}
                   className="text-[12.5px] px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700
                              hover:border-brand hover:text-brand transition-colors whitespace-nowrap">
@@ -338,7 +368,7 @@ export function Motya() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={busy}
-                placeholder="Спросите про заказы, Ozon, склад…"
+                placeholder={placeholder}
                 className="w-full bg-transparent outline-none text-sm disabled:opacity-60"
               />
             </div>

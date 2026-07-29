@@ -236,8 +236,11 @@ export default function App() {
           <Orders />
         )}
       </main>
-      {/* Мотя — AI-ассистент. Только владельцам (API тоже закрыт require_owner). */}
-      {user.role === "owner" && <Motya />}
+      {/* Мотя — AI-ассистент. Доступен рабочим ролям; данные внутри режутся
+          по роли на стороне API (assistant.ROLE_TOOLS + require_assistant). */}
+      {["owner", "ozon", "manager", "fulfillment"].includes(user.role ?? "") && (
+        <Motya role={user.role ?? "owner"} />
+      )}
     </div>
   );
 }
