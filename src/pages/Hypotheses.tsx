@@ -275,13 +275,16 @@ export function Hypotheses() {
   const successRate = s && s.done ? Math.round((s.worked / s.done) * 100) : null;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Гипотезы</h1>
-        <p className="text-sm text-ink-muted">
+    // Отступы и ширина — как на соседних страницах Селекта (Ozon, OzonTraffic),
+    // иначе контент прилипает к краям на десктопе и на мобильном.
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1280px] animate-slide-up space-y-4">
+      <header className="mb-1">
+        <h1 className="text-2xl font-semibold tracking-tighter2 text-ink">Селект · Гипотезы</h1>
+        <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
           Что меняли на Ozon, что из этого вышло и сколько это стоило в деньгах.
+          Метрики до и после снимаются автоматически, вердикт — с поправкой на общий фон.
         </p>
-      </div>
+      </header>
 
       {s && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
