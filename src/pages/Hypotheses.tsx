@@ -288,13 +288,15 @@ export function Hypotheses() {
           <StatCard label="Тестов идёт" value={s.active} accent={s.active > 0}
                     hint={s.active ? "проверю сам по окончании окна" : "заведи в боте"} />
           <StatCard label="Завершено" value={s.done}
-                    hint={s.done ? `🟢 ${s.worked} · 🔴 ${s.failed} · 🟡 ${s.unclear}` : undefined} />
+                    hint={s.done
+                      ? `🟢 ${s.worked} · 🔴 ${s.failed} · 🟡 ${s.unclear}`
+                      : s.retro ? `+ ${s.retro.total} перенесённых ниже` : undefined} />
           <StatCard label="Доля удачных" value={successRate === null ? "—" : `${successRate}%`}
-                    hint={s.done ? `${s.worked} из ${s.done}` : "пока нет данных"} />
+                    hint={s.done ? `${s.worked} из ${s.done}` : "считается по живым тестам"} />
           <StatCard label="Эффект накоплен"
                     value={s.effect_total ? fmtShortRub(s.effect_total) : "—"}
                     accent={s.effect_total > 0}
-                    hint="сумма чистых эффектов" />
+                    hint={s.done ? "сумма чистых эффектов" : "появится после первых вердиктов"} />
         </div>
       )}
 
@@ -317,6 +319,7 @@ export function Hypotheses() {
                   <div className="mb-2 flex items-center gap-2">
                     <ThumbsUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     <h2 className="text-sm font-medium">Лучшие тесты</h2>
+                    {s?.retro && <span className="text-[10px] text-ink-muted">включая перенос</span>}
                   </div>
                   <div className="space-y-1.5">
                     {best.map((h) => (
@@ -336,6 +339,7 @@ export function Hypotheses() {
                   <div className="mb-2 flex items-center gap-2">
                     <ThumbsDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                     <h2 className="text-sm font-medium">Что не сработало</h2>
+                    {s?.retro && <span className="text-[10px] text-ink-muted">включая перенос</span>}
                   </div>
                   <div className="space-y-1.5">
                     {worst.map((h) => (
