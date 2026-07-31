@@ -97,6 +97,20 @@ export default function App() {
     return "orders_all";
   });
 
+  // Отступ под панель Telegram ставим до всякой авторизации: панель висит
+  // над нами и когда пользователь зашёл по сохранённому токену, а ветка ниже
+  // в этом случае не выполняется.
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    try {
+      tg?.ready();
+      tg?.expand();
+    } catch {
+      // не критично — дальше только отступ
+    }
+    markTelegramViewport();
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -121,7 +135,6 @@ export default function App() {
         try {
           tg.ready();
           tg.expand();
-          markTelegramViewport();
           const { token } = await api.authTelegramWebApp(tg.initData);
           if (cancelled) return;
           setToken(token);
