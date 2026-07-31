@@ -14,7 +14,7 @@ import { Ozon } from "./pages/Ozon";
 import { OzonTraffic } from "./pages/OzonTraffic";
 import { Hypotheses } from "./pages/Hypotheses";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
-import { getTelegramWebApp } from "./telegram";
+import { getTelegramWebApp, markTelegramViewport } from "./telegram";
 
 export type Role = "owner" | "manager" | "fulfillment" | "ozon" | "guest";
 export type Warehouse = "our" | "ff" | "both";
@@ -121,6 +121,7 @@ export default function App() {
         try {
           tg.ready();
           tg.expand();
+          markTelegramViewport();
           const { token } = await api.authTelegramWebApp(tg.initData);
           if (cancelled) return;
           setToken(token);

@@ -114,6 +114,20 @@
   .safe-top {
     padding-top: max(0.5rem, env(safe-area-inset-top));
   }
+  /* Мини-приложение Telegram на телефоне: сверху висит его собственная панель
+     («Закрыть», имя бота), а safe-area-inset-top в этом WebView равен нулю —
+     наша шапка залезала под панель и до кнопок было не дотянуться.
+     --tg-top ставит telegram.ts, если Telegram сообщает высоту сам;
+     запас 4.25rem — на версии, где он её не отдаёт.
+     Только мобильная вёрстка: на десктопе (lg) шапки нет вовсе. */
+  html[data-tg="1"] .safe-top {
+    padding-top: calc(var(--tg-top, 4.25rem) + 0.5rem);
+  }
+  @media (min-width: 1024px) {
+    html[data-tg="1"] .safe-top {
+      padding-top: max(0.5rem, env(safe-area-inset-top));
+    }
+  }
   .safe-bottom {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }

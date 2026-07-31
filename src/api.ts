@@ -721,6 +721,9 @@ export const api = {
   async hypotheses(): Promise<HypothesesResponse> {
     return request(`/hypotheses?_t=${Date.now()}`);
   },
+  async deleteHypothesis(id: string): Promise<{ status: string }> {
+    return request(`/hypotheses/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
   async ozonDashboard(periodFrom?: string, periodTo?: string): Promise<OzonDashboard> {
     const p = new URLSearchParams();
     if (periodFrom) p.set("period_from", periodFrom);

@@ -97,7 +97,33 @@ function VerdictText({ raw }: { raw: string }) {
   );
 }
 
-function Detail({ h, onClose }: { h: Hypothesis; onClose: () => void }) {
+function Detail({ h, onClose, onDeleted }: {
+  h: Hypothesis; onClose: () => void; onDeleted: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function remove() {
+    if (!confirm(
+      `Удалить гипотезу #${h.id} «${h.product} · ${h.object}»?\n\n` +
+      "Она исчезнет из журнала и из статистики «что срабатывало», " +
+      "замороженные метрики тоже удалятся. Отменить это будет нельзя.",
+    )) return;
+    setDeleting(true);
+    try {
+      await api.deleteHypothesis(h.id);
+      onDeleted();
+      onClose();
+    } catch (e) {
+      alert(`Не удалось удалить: ${e instanceof Error ? e.message : "ошибка"}`);
+      setDeleting(false);
+    }
+  }
+  return <DetailBody h={h} onClose={onClose} onRemove={remove} deleting={deleting} />;
+}
+
+function DetailBody({ h, onClose, onRemove, deleting }: {
+  h: Hypothesis; onClose: () => void; onRemove: () => void; deleting: boolean;
+}) {
   const b = h.metrics?.before as Record<string, number> | undefined;
   const a = h.metrics?.after as Record<string, number> | undefined;
   const k = kindOf(h);
@@ -191,6 +217,22 @@ function Detail({ h, onClose }: { h: Hypothesis; onClose: () => void }) {
         )}
 
         {h.verdict_text && <VerdictText raw={h.verdict_text} />}
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/5 pt-3 dark:border-white/10">
+          <p className="text-[11px] leading-snug text-ink-muted">
+            Завели по ошибке или это дубль? Удалите — гипотеза перестанет
+            учитываться в статистике и у ассистента.
+          </p>
+          <button
+            onClick={onRemove}
+            disabled={deleting}
+            className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs
+                       font-medium text-rose-600 transition-colors hover:bg-rose-500/10
+                       disabled:opacity-50 dark:text-rose-400"
+          >
+            {deleting ? "Удаляю…" : "Удалить гипотезу"}
+          </button>
+        </div>
       </div>
     </div>,
     document.body,
@@ -565,7 +607,16 @@ export function Hypotheses() {
         </div>
       )}
 
-      {open && <Detail h={open} onClose={() => setOpen(null)} />}
+      {open && (
+        <Detail
+          h={open}
+          onClose={() => setOpen(null)}
+          onDeleted={() => {
+            setData((d) => (d ? { ...d, items: d.items.filter((x) => x.id !== open.id) } : d));
+            api.hypotheses().then(setData).catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }
