@@ -75,8 +75,9 @@ function ChannelTable({ title, subtitle, rows, showShare = true }: {
             <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-ink-subtle tabular-nums">
               <span>отказы {formatPct(r.bounce_rate, 0)}</span>
               <span>корзины {formatNum(r.carts)} · {formatPct(r.cart_pct)}</span>
-              <span className={clsx(r.purchases > 0 && "font-medium text-ink")}>
-                покупки {formatNum(r.purchases)} · {formatPct(r.purchase_pct, 2)}
+              <span>оформили {formatNum(r.purchases)}</span>
+              <span className={clsx((r.paid ?? 0) > 0 && "font-medium text-ink")}>
+                оплатили {formatNum(r.paid ?? 0)} · {formatPct(r.paid_pct ?? 0, 2)}
               </span>
             </div>
           </div>
@@ -94,7 +95,8 @@ function ChannelTable({ title, subtitle, rows, showShare = true }: {
               <th className="pb-1.5 px-2 text-right font-medium">Люди</th>
               <th className="pb-1.5 px-2 text-right font-medium">Отказы</th>
               <th className="pb-1.5 px-2 text-right font-medium">Корзины</th>
-              <th className="pb-1.5 pl-2 text-right font-medium">Покупки</th>
+              <th className="pb-1.5 px-2 text-right font-medium">Оформили</th>
+              <th className="pb-1.5 pl-2 text-right font-medium">Оплатили</th>
             </tr>
           </thead>
           <tbody>
@@ -119,10 +121,11 @@ function ChannelTable({ title, subtitle, rows, showShare = true }: {
                   {formatNum(r.carts)}
                   <span className="ml-1 text-[11px] text-ink-subtle">· {formatPct(r.cart_pct)}</span>
                 </td>
-                <td className={clsx("pl-2 text-right", r.purchases > 0 && "font-semibold text-brand")}>
-                  {formatNum(r.purchases)}
+                <td className="px-2 text-right text-ink-subtle">{formatNum(r.purchases)}</td>
+                <td className={clsx("pl-2 text-right", (r.paid ?? 0) > 0 && "font-semibold text-brand")}>
+                  {formatNum(r.paid ?? 0)}
                   <span className="ml-1 text-[11px] font-normal text-ink-subtle">
-                    · {formatPct(r.purchase_pct, 2)}
+                    · {formatPct(r.paid_pct ?? 0, 2)}
                   </span>
                 </td>
               </tr>
@@ -435,7 +438,7 @@ export function Site() {
             <section className="mt-6 animate-slide-up-fast">
               <ChannelTable
                 title="Откуда приходят"
-                subtitle="Реклама разложена по системам. Покупки — по цели «Оплата заказа» в Метрике."
+                subtitle="Реклама разложена по системам. «Оформили» — заказ создан, «оплатили» — деньги пришли; кабинет Директа считает вторую цель."
                 rows={data.channels}
               />
             </section>

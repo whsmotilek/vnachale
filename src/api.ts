@@ -405,7 +405,11 @@ export interface TrafficChannel {
   carts: number;
   purchases: number;
   cart_pct: number;
+  /** Цель «Ecommerce: покупка» — срабатывает при ОФОРМЛЕНИИ, до денег. */
   purchase_pct: number;
+  /** Цель «Оплата заказа» — по факту оплаты. Её же видит кабинет Директа. */
+  paid: number;
+  paid_pct: number;
   share_pct?: number;
 }
 
