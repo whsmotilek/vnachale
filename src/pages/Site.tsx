@@ -63,7 +63,7 @@ function ChannelTable({ title, subtitle, rows, showShare = true }: {
                 {formatNum(r.visits)}
                 {showShare && r.share_pct !== undefined && (
                   <span className="ml-1 text-[11px] font-normal text-ink-subtle">
-                    {formatPct(r.share_pct, 0)}
+                    · {formatPct(r.share_pct, 0)}
                   </span>
                 )}
               </span>
@@ -117,12 +117,12 @@ function ChannelTable({ title, subtitle, rows, showShare = true }: {
                 <td className="px-2 text-right text-ink-subtle">{formatPct(r.bounce_rate, 0)}</td>
                 <td className="px-2 text-right">
                   {formatNum(r.carts)}
-                  <span className="ml-1 text-[11px] text-ink-subtle">{formatPct(r.cart_pct)}</span>
+                  <span className="ml-1 text-[11px] text-ink-subtle">· {formatPct(r.cart_pct)}</span>
                 </td>
                 <td className={clsx("pl-2 text-right", r.purchases > 0 && "font-semibold text-brand")}>
                   {formatNum(r.purchases)}
                   <span className="ml-1 text-[11px] font-normal text-ink-subtle">
-                    {formatPct(r.purchase_pct, 2)}
+                    · {formatPct(r.purchase_pct, 2)}
                   </span>
                 </td>
               </tr>
