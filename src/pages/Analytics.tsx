@@ -332,12 +332,20 @@ export function Analytics() {
           </section>
 
           {/* === Товары + размеры === */}
-          <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">
+          <section className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-3 animate-slide-up-fast">
             <BarList
               title="Топ товаров"
               items={data.top_products.map(([name, count]) => ({ label: name, value: count }))}
               emptyText="Заказов с товарами пока нет."
               unit="шт"
+            />
+            <BarList
+              title="Топ товаров по выручке"
+              items={(data.top_products_revenue ?? []).map(([name, sum]) => ({
+                label: name, value: sum,
+              }))}
+              emptyText="Выручки по товарам пока нет."
+              unit="₽"
             />
             <BarList
               title="Размеры"

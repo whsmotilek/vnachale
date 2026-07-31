@@ -257,6 +257,8 @@ export interface AnalyticsResponse {
   status_counts: Record<string, number>;
   top_cities: Array<[string, number]>;
   top_products: Array<[string, number]>;
+  /** Топ товаров по деньгам (не по штукам). */
+  top_products_revenue: Array<[string, number]>;
   top_sizes: Array<[string, number]>;
   delivery_methods: Array<[string, number]>;
   daily_revenue: Array<{ date: string; revenue: number; orders: number }>;
