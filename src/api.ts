@@ -445,6 +445,8 @@ export interface SiteAnalyticsResponse {
   channels: TrafficChannel[];
   /** Рекламные кампании по utm_campaign. */
   campaigns: TrafficChannel[];
+  /** Кампании Директа под именами из кабинета — для построчной сверки. */
+  direct_campaigns: TrafficChannel[];
   devices: Array<[string, number]>;
   top_pages: Array<[string, number]>;
   top_cities: Array<[string, number]>;

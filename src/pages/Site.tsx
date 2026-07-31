@@ -464,6 +464,18 @@ export function Site() {
             />
           </section>
 
+          {/* === Кампании Яндекс.Директа === */}
+          {data.direct_campaigns && data.direct_campaigns.length > 0 && (
+            <section className="mt-6 animate-slide-up-fast">
+              <ChannelTable
+                title="Кампании Яндекс.Директа"
+                subtitle="Названия те же, что в кабинете Директа — строки можно сверять напрямую. Директ относит конверсию к дате клика и досчитывает её с задержкой, поэтому за последние сутки его цифра может быть меньше."
+                rows={data.direct_campaigns}
+                showShare={false}
+              />
+            </section>
+          )}
+
           {/* === Рекламные кампании === */}
           {data.campaigns && data.campaigns.length > 0 && (
             <section className="mt-6 animate-slide-up-fast">
