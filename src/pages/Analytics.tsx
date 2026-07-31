@@ -14,6 +14,14 @@ function formatRub(n: number): string {
 function formatPct(n: number): string {
   return `${(n * 100).toFixed(1).replace(/\.0$/, "")}%`;
 }
+/** «+18% к прошлому месяцу» — подпись под цифрой периода.
+ *  Без сравнения выручка сама по себе не отвечает на вопрос «это хорошо?». */
+function deltaHint(now: number, was: number, tail: string): string {
+  if (!was) return was === 0 && now > 0 ? `в прошлый раз — ноль · ${tail}` : tail;
+  const pct = ((now - was) / was) * 100;
+  const sign = pct >= 0 ? "+" : "−";
+  return `${sign}${Math.abs(pct).toFixed(0)}% ${tail}`;
+}
 
 const DELIVERY_LABELS: Record<string, string> = {
   ozon_pvz: "Ozon ПВЗ",
@@ -189,22 +197,73 @@ export function Analytics() {
             <StatCard
               label="Выручка"
               value={formatRub(data.total_revenue)}
-              hint={`${data.total_orders} заказ.`}
+              hint={
+                data.prev_period
+                  ? deltaHint(data.total_revenue, data.prev_period.revenue, "к прошлому отрезку")
+                  : `${data.paid_orders ?? 0} оплаченных заказов`
+              }
             />
             <StatCard
-              label="Сегодня"
-              value={formatRub(data.today_revenue)}
-              hint="с 00:00"
-            />
-            <StatCard
-              label="Этот месяц"
-              value={formatRub(data.month_revenue)}
-              hint="с 1-го числа"
+              label="Оплаченные заказы"
+              value={data.paid_orders ?? 0}
+              hint={
+                data.prev_period
+                  ? deltaHint(data.paid_orders ?? 0, data.prev_period.orders, "к прошлому отрезку")
+                  : `из ${data.total_orders} созданных`
+              }
             />
             <StatCard
               label="Средний чек"
               value={formatRub(Math.round(data.aov))}
-              hint="по периоду"
+              hint={
+                data.prev_period
+                  ? deltaHint(data.aov, data.prev_period.aov, "к прошлому отрезку")
+                  : "на оплаченный заказ"
+              }
+            />
+            <StatCard
+              label="Выручка на клиента"
+              value={formatRub(Math.round(data.revenue_per_customer ?? 0))}
+              hint={`${data.unique_customers} покупателей`}
+            />
+          </section>
+
+          {/* === Выкупы / возвраты / в пути === */}
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
+            <StatCard
+              label="Выкупы"
+              value={`${data.fulfillment?.delivered_count ?? 0} · ${formatRub(
+                data.fulfillment?.delivered_sum ?? 0,
+              )}`}
+              hint={
+                (data.fulfillment?.delivered_count ?? 0) + (data.fulfillment?.refunded_count ?? 0) > 0
+                  ? `${formatPct(data.fulfillment?.buyout_rate ?? 0)} из завершённых — забрали`
+                  : "заказы, дошедшие до клиента"
+              }
+            />
+            <StatCard
+              label="Возвраты"
+              value={`${data.fulfillment?.refunded_count ?? 0} · ${formatRub(
+                data.fulfillment?.refunded_sum ?? 0,
+              )}`}
+              hint={
+                (data.fulfillment?.partial_refund_sum ?? 0) > 0
+                  ? `плюс частичных на ${formatRub(data.fulfillment.partial_refund_sum)}`
+                  : "деньги вернули клиенту"
+              }
+            />
+            <StatCard
+              label="В пути сейчас"
+              value={`${data.fulfillment?.in_transit_count ?? 0} · ${formatRub(
+                data.fulfillment?.in_transit_sum ?? 0,
+              )}`}
+              hint={
+                (data.fulfillment?.in_pack_count ?? 0) > 0
+                  ? `и ещё ${data.fulfillment.in_pack_count} на складе — ${formatRub(
+                      data.fulfillment.in_pack_sum,
+                    )}`
+                  : "отгружено, клиент ещё не забрал"
+              }
             />
           </section>
 
@@ -246,19 +305,19 @@ export function Analytics() {
           {/* === Конверсия / клиенты / возвраты === */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
             <StatCard
-              label="Конверсия"
+              label="Доходят до оплаты"
               value={formatPct(data.conversion_rate)}
-              hint="дошли до покупателя"
+              hint={`${data.paid_orders ?? 0} из ${data.total_orders} заказов`}
             />
             <StatCard
-              label="Возвраты"
+              label="Не оплатили"
+              value={formatPct(data.abandoned_rate ?? 0)}
+              hint={`${data.abandoned_count ?? 0} корзин отменено автоматически`}
+            />
+            <StatCard
+              label="Доля возвратов"
               value={formatPct(data.refund_rate)}
-              hint="отмены и возвраты"
-            />
-            <StatCard
-              label="Клиенты"
-              value={data.unique_customers}
-              hint="разных покупателей"
+              hint="от оплаченных заказов"
             />
             <StatCard
               label="Повторные"

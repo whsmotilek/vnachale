@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Filter, X } from "lucide-react";
-import { api, type ProductBreakdown, type SiteAnalyticsResponse } from "../api";
+import { api, type ProductBreakdown, type SiteAnalyticsResponse, type TrafficChannel } from "../api";
 import { StatCard } from "../components/StatCard";
 import { StatCardsSkeleton } from "../components/Skeleton";
 import { BarList } from "../components/charts/BarList";
@@ -34,6 +34,105 @@ const PRESETS: Array<{ key: PeriodKey; label: string }> = [
   { key: "year", label: "Год" },
   { key: "custom", label: "Период" },
 ];
+
+/** Каналы и кампании: объём рядом с качеством.
+ *
+ *  Одних визитов мало — канал с тысячами заходов и одной покупкой выглядит
+ *  лучшим, пока не увидишь конверсию. На телефоне таблица не помещается,
+ *  поэтому там те же цифры карточками.
+ */
+function ChannelTable({ title, subtitle, rows, showShare = true }: {
+  title: string;
+  subtitle?: string;
+  rows: TrafficChannel[];
+  showShare?: boolean;
+}) {
+  const maxVisits = Math.max(1, ...rows.map((r) => r.visits));
+  return (
+    <div className="card p-4">
+      <h2 className="text-sm font-semibold tracking-tightish">{title}</h2>
+      {subtitle && <div className="mt-0.5 text-[12px] text-ink-subtle">{subtitle}</div>}
+
+      {/* Телефон — карточки */}
+      <div className="mt-3 flex flex-col gap-2 lg:hidden">
+        {rows.map((r) => (
+          <div key={r.name} className="rounded-lg bg-black/[.03] p-2.5 dark:bg-white/[.05]">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-[13px] font-medium">{r.name}</span>
+              <span className="shrink-0 text-[13px] font-semibold tabular-nums">
+                {formatNum(r.visits)}
+                {showShare && r.share_pct !== undefined && (
+                  <span className="ml-1 text-[11px] font-normal text-ink-subtle">
+                    {formatPct(r.share_pct, 0)}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-black/[.06] dark:bg-white/[.08]">
+              <div className="h-full rounded-full bg-brand"
+                   style={{ width: `${(r.visits / maxVisits) * 100}%` }} />
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-ink-subtle tabular-nums">
+              <span>отказы {formatPct(r.bounce_rate, 0)}</span>
+              <span>корзины {formatNum(r.carts)} · {formatPct(r.cart_pct)}</span>
+              <span className={clsx(r.purchases > 0 && "font-medium text-ink")}>
+                покупки {formatNum(r.purchases)} · {formatPct(r.purchase_pct, 2)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Десктоп — таблица */}
+      <div className="mt-3 hidden overflow-x-auto lg:block">
+        <table className="w-full text-[13px] tabular-nums">
+          <thead>
+            <tr className="border-b border-line text-left text-[11.5px] uppercase tracking-wide text-ink-subtle">
+              <th className="pb-1.5 pr-2 font-medium">Канал</th>
+              <th className="pb-1.5 px-2 text-right font-medium">Визиты</th>
+              {showShare && <th className="pb-1.5 px-2 text-right font-medium">Доля</th>}
+              <th className="pb-1.5 px-2 text-right font-medium">Люди</th>
+              <th className="pb-1.5 px-2 text-right font-medium">Отказы</th>
+              <th className="pb-1.5 px-2 text-right font-medium">Корзины</th>
+              <th className="pb-1.5 pl-2 text-right font-medium">Покупки</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.name} className="border-b border-line/60 last:border-0">
+                <td className="py-1.5 pr-2">
+                  <div className="max-w-[260px] truncate" title={r.name}>{r.name}</div>
+                  <div className="mt-1 h-1 max-w-[260px] overflow-hidden rounded-full bg-black/[.06] dark:bg-white/[.08]">
+                    <div className="h-full rounded-full bg-brand"
+                         style={{ width: `${(r.visits / maxVisits) * 100}%` }} />
+                  </div>
+                </td>
+                <td className="px-2 text-right font-medium">{formatNum(r.visits)}</td>
+                {showShare && (
+                  <td className="px-2 text-right text-ink-subtle">
+                    {r.share_pct !== undefined ? formatPct(r.share_pct, 0) : "—"}
+                  </td>
+                )}
+                <td className="px-2 text-right text-ink-subtle">{formatNum(r.users)}</td>
+                <td className="px-2 text-right text-ink-subtle">{formatPct(r.bounce_rate, 0)}</td>
+                <td className="px-2 text-right">
+                  {formatNum(r.carts)}
+                  <span className="ml-1 text-[11px] text-ink-subtle">{formatPct(r.cart_pct)}</span>
+                </td>
+                <td className={clsx("pl-2 text-right", r.purchases > 0 && "font-semibold text-brand")}>
+                  {formatNum(r.purchases)}
+                  <span className="ml-1 text-[11px] font-normal text-ink-subtle">
+                    {formatPct(r.purchase_pct, 2)}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function VisitsChart({ data }: { data: SiteAnalyticsResponse["daily"] }) {
   if (data.length === 0) {
@@ -331,12 +430,32 @@ export function Site() {
             <VisitsChart data={data.daily} />
           </section>
 
+          {/* === Каналы привлечения === */}
+          {data.channels && data.channels.length > 0 && (
+            <section className="mt-6 animate-slide-up-fast">
+              <ChannelTable
+                title="Откуда приходят"
+                subtitle="Реклама разложена по системам. Покупки — по цели «Оплата заказа» в Метрике."
+                rows={data.channels}
+              />
+            </section>
+          )}
+
           {/* === Источники + устройства === */}
           <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">
             <Donut
-              title="Источники трафика"
-              slices={data.sources.map(([n, v]) => ({ label: n, value: v }))}
-              centerLabel={{ primary: formatNum(data.sources.reduce((s, [, n]) => s + n, 0)), secondary: "визитов" }}
+              title="Доли каналов"
+              slices={(data.channels && data.channels.length > 0
+                ? data.channels.map((c) => ({ label: c.name, value: c.visits }))
+                : data.sources.map(([n, v]) => ({ label: n, value: v })))}
+              centerLabel={{
+                primary: formatNum(
+                  data.channels && data.channels.length > 0
+                    ? data.channels.reduce((s, c) => s + c.visits, 0)
+                    : data.sources.reduce((s, [, n]) => s + n, 0),
+                ),
+                secondary: "визитов",
+              }}
             />
             <Donut
               title="Устройства"
@@ -344,6 +463,18 @@ export function Site() {
               centerLabel={{ primary: formatNum(data.devices.reduce((s, [, n]) => s + n, 0)), secondary: "визитов" }}
             />
           </section>
+
+          {/* === Рекламные кампании === */}
+          {data.campaigns && data.campaigns.length > 0 && (
+            <section className="mt-6 animate-slide-up-fast">
+              <ChannelTable
+                title="Рекламные кампании"
+                subtitle="Размеченный трафик по utm_campaign — какая связка объявлений доводит до покупки."
+                rows={data.campaigns}
+                showShare={false}
+              />
+            </section>
+          )}
 
           {/* === Топ страниц + города === */}
           <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">

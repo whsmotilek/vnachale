@@ -233,8 +233,27 @@ export interface AnalyticsResponse {
   unique_customers: number;
   repeat_customers: number;
   repeat_rate: number;
-  conversion_rate: number;
-  refund_rate: number;
+  conversion_rate: number;   // доля созданных заказов, дошедших до оплаты
+  refund_rate: number;       // доля денежных возвратов среди оплаченных
+  paid_orders: number;
+  revenue_per_customer: number;
+  abandoned_rate: number;    // корзины, не дошедшие до оплаты
+  abandoned_count: number;
+  /** Тот же по длине отрезок перед выбранным периодом. null для «за всё время». */
+  prev_period: { from: string; to: string; revenue: number; orders: number; aov: number } | null;
+  /** Выкупы и возвраты — за период; «в пути» и «в сборке» — снимок на сейчас. */
+  fulfillment: {
+    delivered_count: number;
+    delivered_sum: number;
+    refunded_count: number;
+    refunded_sum: number;
+    partial_refund_sum: number;
+    buyout_rate: number;
+    in_transit_count: number;
+    in_transit_sum: number;
+    in_pack_count: number;
+    in_pack_sum: number;
+  };
   status_counts: Record<string, number>;
   top_cities: Array<[string, number]>;
   top_products: Array<[string, number]>;
@@ -376,6 +395,18 @@ export interface ProductBreakdown {
   cities?: Array<[string, number]>;
 }
 
+export interface TrafficChannel {
+  name: string;
+  visits: number;
+  users: number;
+  bounce_rate: number;
+  carts: number;
+  purchases: number;
+  cart_pct: number;
+  purchase_pct: number;
+  share_pct?: number;
+}
+
 export interface SiteAnalyticsResponse {
   period: string;
   period_from: string;
@@ -408,6 +439,10 @@ export interface SiteAnalyticsResponse {
   daily: Array<{ date: string; visits: number; users: number }>;
   daily_real: Array<{ date: string; revenue: number; orders: number }>;
   sources: Array<[string, number]>;
+  /** Каналы привлечения: реклама развёрнута по системам (Директ / VK / Instagram). */
+  channels: TrafficChannel[];
+  /** Рекламные кампании по utm_campaign. */
+  campaigns: TrafficChannel[];
   devices: Array<[string, number]>;
   top_pages: Array<[string, number]>;
   top_cities: Array<[string, number]>;
