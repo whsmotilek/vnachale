@@ -444,6 +444,40 @@ export function Site() {
             </section>
           )}
 
+          {/* === Поправка: конверсии, переставшие быть продажами === */}
+          {data.conversion_caveats && data.conversion_caveats.count > 0 && (
+            <section className="mt-3 animate-fade-in">
+              <details className="card p-3.5">
+                <summary className="cursor-pointer list-none text-[13px]">
+                  <span className="font-medium">
+                    Поправка: {data.conversion_caveats.count}{" "}
+                    {data.conversion_caveats.count === 1 ? "покупка" : "покупок"} в таблице выше —
+                    уже не продажа
+                  </span>
+                  <span className="ml-1 text-ink-subtle">
+                    на {formatRub(data.conversion_caveats.sum)} · развернуть
+                  </span>
+                </summary>
+                <p className="mt-2 text-[12px] leading-relaxed text-ink-subtle">
+                  Метрика фиксирует оплату в момент платежа, и отозвать это событие нельзя.
+                  Если заказ потом отменили или вернули деньги, он так и остаётся покупкой
+                  в статистике канала.
+                </p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {data.conversion_caveats.items.map((i) => (
+                    <div key={i.order_id} className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
+                      <span className="text-ink-subtle tabular-nums">{i.date}</span>
+                      <span className="font-mono text-[11px]">{i.order_id}</span>
+                      <span className="tabular-nums">{formatRub(i.amount)}</span>
+                      <span className="text-ink-subtle">{i.customer}</span>
+                      <span className="text-brand">{i.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </section>
+          )}
+
           {/* === Источники + устройства === */}
           <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 animate-slide-up-fast">
             <Donut

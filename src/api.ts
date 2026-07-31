@@ -451,6 +451,16 @@ export interface SiteAnalyticsResponse {
   campaigns: TrafficChannel[];
   /** Кампании Директа под именами из кабинета — для построчной сверки. */
   direct_campaigns: TrafficChannel[];
+  /** Оплаты, которые задним числом перестали быть продажами (отмены, возвраты, тесты).
+   *  Из Метрики такие конверсии не отзываются и остаются в статистике канала. */
+  conversion_caveats: {
+    count: number;
+    sum: number;
+    items: Array<{
+      order_id: string; date: string; amount: number;
+      lost: number; customer: string; reason: string;
+    }>;
+  };
   devices: Array<[string, number]>;
   top_pages: Array<[string, number]>;
   top_cities: Array<[string, number]>;
