@@ -153,7 +153,10 @@ function DetailBody({ h, onClose, onRemove, deleting }: {
             <span className={clsx("h-1.5 w-1.5 rounded-full", KIND_META[k].dot)} />
             {KIND_META[k].label}
           </span>
-          {h.status !== "активна" && h.effect_rub !== 0 && (
+          {h.status !== "активна" && h.effect_rub === null && (
+            <span className="text-sm text-ink-muted">эффект не измерен</span>
+          )}
+          {h.status !== "активна" && !!h.effect_rub && (
             <span className={clsx("text-sm font-semibold tabular-nums",
               h.effect_rub > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
               {fmtRub(h.effect_rub)}
@@ -268,24 +271,31 @@ export function Hypotheses() {
 
   /** Сводка по товарам: где тестировали и что из этого вышло. */
   const byProduct = useMemo(() => {
-    const m = new Map<string, { product: string; total: number; ok: number; effect: number }>();
+    const m = new Map<string, { product: string; total: number; measured: number; ok: number; effect: number }>();
     for (const h of items) {
       if (h.status === "активна") continue;
-      const e = m.get(h.product) ?? { product: h.product, total: 0, ok: 0, effect: 0 };
+      const e = m.get(h.product) ?? { product: h.product, total: 0, measured: 0, ok: 0, effect: 0 };
       e.total += 1;
-      if (kindOf(h) === "ok") e.ok += 1;
-      e.effect += h.effect_rub;
+      // Неизмеримый тест не участвует ни в сумме, ни в «сколько удачных»:
+      // иначе он молча засчитывается как неудача.
+      if (h.effect_rub !== null) {
+        e.measured += 1;
+        e.effect += h.effect_rub;
+        if (kindOf(h) === "ok") e.ok += 1;
+      }
       m.set(h.product, e);
     }
     return [...m.values()].sort((x, y) => y.effect - x.effect);
   }, [items]);
 
   const best = useMemo(
-    () => items.filter((h) => kindOf(h) === "ok").sort((a, b) => b.effect_rub - a.effect_rub).slice(0, 3),
+    () => items.filter((h) => kindOf(h) === "ok" && h.effect_rub !== null)
+      .sort((a, b) => (b.effect_rub as number) - (a.effect_rub as number)).slice(0, 3),
     [items],
   );
   const worst = useMemo(
-    () => items.filter((h) => kindOf(h) === "bad").sort((a, b) => a.effect_rub - b.effect_rub).slice(0, 3),
+    () => items.filter((h) => kindOf(h) === "bad" && h.effect_rub !== null)
+      .sort((a, b) => (a.effect_rub as number) - (b.effect_rub as number)).slice(0, 3),
     [items],
   );
 
@@ -314,7 +324,9 @@ export function Hypotheses() {
   if (err) return <div className="card p-4 text-sm text-rose-600">{err}</div>;
 
   const empty = items.length === 0;
-  const successRate = s && s.done ? Math.round((s.worked / s.done) * 100) : null;
+  // Знаменатель — измеримые тесты, а не все завершённые: тест со сломанным
+  // замером не «неудачный», он просто ничего не сказал.
+  const successRate = s && s.measured ? Math.round((s.worked / s.measured) * 100) : null;
 
   return (
     // Отступы и ширина — как на соседних страницах Селекта (Ozon, OzonTraffic),
@@ -337,11 +349,15 @@ export function Hypotheses() {
                       ? `🟢 ${s.worked} · 🔴 ${s.failed} · 🟡 ${s.unclear}`
                       : s.retro ? `+ ${s.retro.total} перенесённых ниже` : undefined} />
           <StatCard label="Доля удачных" value={successRate === null ? "—" : `${successRate}%`}
-                    hint={s.done ? `${s.worked} из ${s.done}` : "считается по живым тестам"} />
+                    hint={s.measured
+                      ? `${s.worked} из ${s.measured}${s.unmeasurable ? ` · ${s.unmeasurable} не измерено` : ""}`
+                      : s.done ? "эффект пока ни у одного не измерен" : "считается по живым тестам"} />
           <StatCard label="Эффект накоплен"
                     value={s.effect_total ? fmtShortRub(s.effect_total) : "—"}
                     accent={s.effect_total > 0}
-                    hint={s.done ? "сумма чистых эффектов" : "появится после первых вердиктов"} />
+                    hint={s.measured
+                      ? `сумма по ${s.measured} тестам с измеримым эффектом`
+                      : "появится после первых измеримых вердиктов"} />
         </div>
       )}
 
@@ -372,7 +388,7 @@ export function Hypotheses() {
                         className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-sm hover:bg-black/[.03] dark:hover:bg-white/[.06]">
                         <span className="min-w-0 flex-1 truncate">{h.product} · <span className="text-ink-muted">{h.object}</span></span>
                         <span className="shrink-0 font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-                          {fmtShortRub(h.effect_rub)}
+                          {fmtShortRub(h.effect_rub ?? 0)}
                         </span>
                       </button>
                     ))}
@@ -392,7 +408,7 @@ export function Hypotheses() {
                         className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-sm hover:bg-black/[.03] dark:hover:bg-white/[.06]">
                         <span className="min-w-0 flex-1 truncate">{h.product} · <span className="text-ink-muted">{h.object}</span></span>
                         <span className="shrink-0 font-medium tabular-nums text-rose-600 dark:text-rose-400">
-                          {fmtShortRub(h.effect_rub)}
+                          {fmtShortRub(h.effect_rub ?? 0)}
                         </span>
                       </button>
                     ))}
@@ -466,7 +482,10 @@ export function Hypotheses() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className={clsx("text-xs font-medium", KIND_META[k].text)}>{KIND_META[k].label}</div>
-                    {h.status !== "активна" && h.effect_rub !== 0 && (
+                    {h.status !== "активна" && h.effect_rub === null && (
+                      <div className="text-xs text-ink-muted">не измерен</div>
+                    )}
+                    {h.status !== "активна" && !!h.effect_rub && (
                       <div className={clsx("text-sm font-semibold tabular-nums",
                         h.effect_rub > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
                         {fmtShortRub(h.effect_rub)}
@@ -492,10 +511,11 @@ export function Hypotheses() {
                 <span className="w-28 shrink-0 truncate sm:w-40">{a.action}</span>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[.06] dark:bg-white/10">
                   <div className="h-full rounded-full bg-brand"
-                       style={{ width: `${a.total ? (a.worked / a.total) * 100 : 0}%` }} />
+                       style={{ width: `${a.measured ? (a.worked / a.measured) * 100 : 0}%` }} />
                 </div>
-                <span className="w-12 shrink-0 text-right tabular-nums text-xs text-ink-muted">
-                  {a.worked}/{a.total}
+                <span className="w-12 shrink-0 text-right tabular-nums text-xs text-ink-muted"
+                      title={a.measured < a.total ? `${a.total - a.measured} без измеримого эффекта` : undefined}>
+                  {a.measured ? `${a.worked}/${a.measured}` : "—"}
                 </span>
                 <span className={clsx("w-20 shrink-0 text-right text-xs tabular-nums sm:w-24",
                   a.effect > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
@@ -505,7 +525,8 @@ export function Hypotheses() {
             ))}
           </div>
           <p className="mt-3 text-xs text-ink-muted">
-            Доля тестов, признанных удачными, и суммарный чистый эффект по каждому типу.
+            Доля удачных и суммарный чистый эффект — по тестам, у которых эффект удалось измерить.
+            Тесты со сломанным замером (нет товара, оборвалась реклама, база «до» рушилась) в счёт не идут.
           </p>
         </div>
       )}
@@ -519,6 +540,7 @@ export function Hypotheses() {
                 <tr className="text-left text-xs text-ink-muted">
                   <th className="pb-1.5 font-medium">товар</th>
                   <th className="pb-1.5 text-right font-medium">тестов</th>
+                  <th className="pb-1.5 text-right font-medium">измерено</th>
                   <th className="pb-1.5 text-right font-medium">удачных</th>
                   <th className="pb-1.5 text-right font-medium">эффект</th>
                 </tr>
@@ -528,7 +550,8 @@ export function Hypotheses() {
                   <tr key={p.product} className="border-t border-black/5 dark:border-white/5">
                     <td className="py-1.5 pr-2">{p.product}</td>
                     <td className="py-1.5 text-right tabular-nums">{p.total}</td>
-                    <td className="py-1.5 text-right tabular-nums">{p.ok}</td>
+                    <td className="py-1.5 text-right tabular-nums text-ink-muted">{p.measured}</td>
+                    <td className="py-1.5 text-right tabular-nums">{p.measured ? p.ok : "—"}</td>
                     <td className={clsx("py-1.5 text-right font-medium tabular-nums",
                       p.effect > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
                       {fmtShortRub(p.effect)}

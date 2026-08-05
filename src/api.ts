@@ -664,7 +664,8 @@ export interface Hypothesis {
   check_at: string;
   status: string;
   verdict: string;
-  effect_rub: number;
+  /** null — эффект измерить не удалось. Это НЕ ноль: ноль означает «измерили, влияния нет». */
+  effect_rub: number | null;
   overlap_ids: string;
   auto_detected: boolean;
   source: "live" | "auto" | "retro";
@@ -672,13 +673,19 @@ export interface Hypothesis {
   verdict_text: string;
   metrics: { before?: HypMetricPhase; after?: HypMetricPhase };
 }
-export interface HypByAction { action: string; total: number; worked: number; effect: number }
+export interface HypByAction {
+  action: string; total: number; worked: number; effect: number;
+  /** сколько из total с измеримым эффектом — от него и считаем «удачные» */
+  measured: number;
+}
 export interface HypRetro {
-  total: number; worked: number; failed: number; unclear: number;
+  total: number; measured: number; unmeasurable: number;
+  worked: number; failed: number; unclear: number;
   effect_total: number; by_action: HypByAction[]; period: [string, string];
 }
 export interface HypStats {
-  active: number; done: number; worked: number; failed: number;
+  active: number; done: number; measured: number; unmeasurable: number;
+  worked: number; failed: number;
   unclear: number; no_data: number; effect_total: number; by_action: HypByAction[];
   retro?: HypRetro;
 }
