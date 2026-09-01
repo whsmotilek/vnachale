@@ -74,8 +74,11 @@ function isPageAllowed(
   stockAccess: boolean,
 ): boolean {
   if (role === "owner") return true;
-  const our = warehouse === "our" || warehouse === "both";
-  const ff = warehouse === "ff" || warehouse === "both";
+  // Грант stockAccess — доступ на просмотр обоих складов поверх физического.
+  // Колонка warehouse при этом остаётся физической: по ней бот строит очередь
+  // отгрузки и шлёт уведомления, и трогать её нельзя.
+  const our = stockAccess || warehouse === "our" || warehouse === "both";
+  const ff = stockAccess || warehouse === "ff" || warehouse === "both";
   // Страницы Селекта: по роли ozon либо по гранту поверх любой роли (для fulfillment).
   if (page === "ozon" || page === "ozon_traffic" || page === "hypotheses") {
     return role === "ozon" || ozonAccess;
@@ -83,6 +86,8 @@ function isPageAllowed(
   // Учёт остатков: по роли fulfillment либо по гранту (ozon-менеджер). Склад — по доступу.
   if (page === "stock" && (role === "fulfillment" || stockAccess)) return our;
   if (page === "stock_ff" && (role === "fulfillment" || stockAccess)) return ff;
+  // Заказы обоих складов — только по гранту; роль ozon сюда не попадает.
+  if (stockAccess && role === "fulfillment" && (page === "orders" || page === "preorders")) return true;
   if (role === "fulfillment") {
     if (page === "orders") return our;       // наш склад → обычные заказы
     if (page === "preorders") return ff;     // ФФ → «Заказы ФФ»

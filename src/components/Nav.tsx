@@ -87,11 +87,14 @@ function visibleSections(
     const items = s.items.filter((it) => {
       const isOzonPage = it.id === "ozon" || it.id === "ozon_traffic" || it.id === "hypotheses";
       const isStockPage = it.id === "stock" || it.id === "stock_ff";
+      const isOrdersPage = it.id === "orders" || it.id === "preorders";
       if (it.roles && !it.roles.includes(role)) {
         // Доп.капабилити поверх роли: Селект по ozonAccess, склады по stockAccess.
-        if (!(isOzonPage && ozonAccess) && !(isStockPage && stockAccess)) return false;
+        if (!(isOzonPage && ozonAccess) && !(isStockPage && stockAccess)
+            && !(isOrdersPage && stockAccess && role === "fulfillment")) return false;
       }
-      if (it.warehouses && !it.warehouses.includes(warehouse)) return false;
+      // Грант на просмотр снимает ограничение по физическому складу.
+      if (it.warehouses && !stockAccess && !it.warehouses.includes(warehouse)) return false;
       // Дубли «Заказы Склад / Заказы ФФ» прячем у owner'а, если он не Матвей.
       if (it.adminOnly && role === "owner" && !isAdmin) return false;
       return true;
