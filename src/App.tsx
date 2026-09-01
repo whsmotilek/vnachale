@@ -175,6 +175,20 @@ export default function App() {
             setUser(u);
             setBootstrapping(false);
           }
+          // Права живут внутри токена, а он выдан на две недели. Тихо
+          // перевыпускаем его при запуске: иначе смена доступа в «Подписках»
+          // требовала бы от человека выйти и зайти, о чём он не догадается.
+          // Показываем страницу сразу, обновление приходит следом.
+          api.authRefresh()
+            .then(({ token }) => {
+              if (cancelled) return;
+              const fresh = decodeJwtPayload(token);
+              if (fresh) {
+                setToken(token);
+                setUser(fresh);
+              }
+            })
+            .catch(() => { /* сеть или просроченная сессия — работаем на старом */ });
           return;
         }
         clearToken();

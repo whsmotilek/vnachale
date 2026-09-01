@@ -707,6 +707,10 @@ export const api = {
       body: JSON.stringify({ init_data: initData }),
     });
   },
+  /** Перевыпуск токена с актуальными правами — вызывается при запуске. */
+  async authRefresh(): Promise<{ token: string }> {
+    return request("/auth/refresh", { method: "POST" });
+  },
   async authPassword(username: string, password: string): Promise<{ token: string }> {
     return request("/auth/password", {
       method: "POST",
