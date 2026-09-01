@@ -26,6 +26,8 @@ interface SessionUser {
   role: Role;
   warehouse: Warehouse;
   ozonAccess: boolean;
+  /** Доп.грант на страницы учёта остатков поверх роли (для ozon-менеджера). */
+  stockAccess: boolean;
 }
 
 function decodeJwtPayload(token: string): SessionUser | null {
@@ -55,6 +57,8 @@ function decodeJwtPayload(token: string): SessionUser | null {
       warehouse,
       // Доп.капабилити: доступ к страницам Ozon поверх роли (для fulfillment).
       ozonAccess: json.ozon === true,
+      // Зеркальный грант: склад поверх роли (для ozon-менеджера). Заказы не открывает.
+      stockAccess: json.ops === true,
     };
   } catch {
     return null;
@@ -62,19 +66,26 @@ function decodeJwtPayload(token: string): SessionUser | null {
 }
 
 // Какие страницы разрешены для каждой роли + склада
-function isPageAllowed(page: Page, role: Role, warehouse: Warehouse, ozonAccess: boolean): boolean {
+function isPageAllowed(
+  page: Page,
+  role: Role,
+  warehouse: Warehouse,
+  ozonAccess: boolean,
+  stockAccess: boolean,
+): boolean {
   if (role === "owner") return true;
-  // Ozon-менеджер: только аналитика и трафик Селекта.
-  if (role === "ozon") return page === "ozon" || page === "ozon_traffic" || page === "hypotheses";
-  // Доп.капабилити поверх любой роли: доступ к страницам Ozon (для fulfillment).
-  if (ozonAccess && (page === "ozon" || page === "ozon_traffic" || page === "hypotheses")) return true;
+  const our = warehouse === "our" || warehouse === "both";
+  const ff = warehouse === "ff" || warehouse === "both";
+  // Страницы Селекта: по роли ozon либо по гранту поверх любой роли (для fulfillment).
+  if (page === "ozon" || page === "ozon_traffic" || page === "hypotheses") {
+    return role === "ozon" || ozonAccess;
+  }
+  // Учёт остатков: по роли fulfillment либо по гранту (ozon-менеджер). Склад — по доступу.
+  if (page === "stock" && (role === "fulfillment" || stockAccess)) return our;
+  if (page === "stock_ff" && (role === "fulfillment" || stockAccess)) return ff;
   if (role === "fulfillment") {
-    const our = warehouse === "our" || warehouse === "both";
-    const ff = warehouse === "ff" || warehouse === "both";
     if (page === "orders") return our;       // наш склад → обычные заказы
-    if (page === "stock") return our;
     if (page === "preorders") return ff;     // ФФ → «Заказы ФФ»
-    if (page === "stock_ff") return ff;
     return false;
   }
   // Менеджер заказов: общая «Заказы» (все заказы обоих складов). Деньги/склад — нет.
@@ -173,7 +184,7 @@ export default function App() {
   // Если роль не пускает на текущую страницу — перенаправляем на разрешённую
   useEffect(() => {
     if (!user) return;
-    if (!isPageAllowed(page, user.role, user.warehouse, user.ozonAccess)) {
+    if (!isPageAllowed(page, user.role, user.warehouse, user.ozonAccess, user.stockAccess)) {
       // ozon-менеджер начинает с аналитики Селекта
       if (user.role === "ozon") setPage("ozon");
       // manager → общая «Заказы»; fulfillment ФФ → «Заказы ФФ»; остальные → «Заказы»
@@ -212,7 +223,7 @@ export default function App() {
       <Nav
         page={page}
         setPage={setPage}
-        user={{ id: user.id, name: user.name, username: user.username, role: user.role, warehouse: user.warehouse, ozonAccess: user.ozonAccess }}
+        user={{ id: user.id, name: user.name, username: user.username, role: user.role, warehouse: user.warehouse, ozonAccess: user.ozonAccess, stockAccess: user.stockAccess }}
         onLogout={() => {
           clearToken();
           setUser(null);
@@ -229,12 +240,14 @@ export default function App() {
           <Preorders />
         ) : page === "stock" &&
           (user.role === "owner" ||
-            (user.role === "fulfillment" && (user.warehouse === "our" || user.warehouse === "both"))) ? (
-          <Stock warehouse="our" />
+            ((user.role === "fulfillment" || user.stockAccess) &&
+              (user.warehouse === "our" || user.warehouse === "both"))) ? (
+          <Stock warehouse="our" canEdit={user.role !== "ozon"} />
         ) : page === "stock_ff" &&
           (user.role === "owner" ||
-            (user.role === "fulfillment" && (user.warehouse === "ff" || user.warehouse === "both"))) ? (
-          <Stock warehouse="ff" />
+            ((user.role === "fulfillment" || user.stockAccess) &&
+              (user.warehouse === "ff" || user.warehouse === "both"))) ? (
+          <Stock warehouse="ff" canEdit={user.role !== "ozon"} />
         ) : page === "ozon" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
           <Ozon />
         ) : page === "hypotheses" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (

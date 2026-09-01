@@ -75,14 +75,21 @@ const SECTIONS: NavSection[] = [
 /** Фильтруем секции по роли + складу, выкидывая пустые секции целиком.
  * adminOnly прячет пункт у обычных owner'ов (но не у fulfillment/manager,
  * для которых это рабочая страница). Супер-админ (Матвей) видит всё. */
-function visibleSections(role: Role, warehouse: Warehouse, isAdmin: boolean, ozonAccess: boolean): NavSection[] {
+function visibleSections(
+  role: Role,
+  warehouse: Warehouse,
+  isAdmin: boolean,
+  ozonAccess: boolean,
+  stockAccess: boolean,
+): NavSection[] {
   const out: NavSection[] = [];
   for (const s of SECTIONS) {
     const items = s.items.filter((it) => {
       const isOzonPage = it.id === "ozon" || it.id === "ozon_traffic" || it.id === "hypotheses";
+      const isStockPage = it.id === "stock" || it.id === "stock_ff";
       if (it.roles && !it.roles.includes(role)) {
-        // Доп.капабилити: страницы Ozon видны при ozonAccess поверх любой роли.
-        if (!(isOzonPage && ozonAccess)) return false;
+        // Доп.капабилити поверх роли: Селект по ozonAccess, склады по stockAccess.
+        if (!(isOzonPage && ozonAccess) && !(isStockPage && stockAccess)) return false;
       }
       if (it.warehouses && !it.warehouses.includes(warehouse)) return false;
       // Дубли «Заказы Склад / Заказы ФФ» прячем у owner'а, если он не Матвей.
@@ -111,13 +118,13 @@ export function Nav({
 }: {
   page: Page;
   setPage: (p: Page) => void;
-  user: { id: number; name: string; username?: string; role: Role; warehouse: Warehouse; ozonAccess?: boolean };
+  user: { id: number; name: string; username?: string; role: Role; warehouse: Warehouse; ozonAccess?: boolean; stockAccess?: boolean };
   onLogout: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const sections = visibleSections(user.role, user.warehouse, isSuperAdmin(user), user.ozonAccess === true);
+  const sections = visibleSections(user.role, user.warehouse, isSuperAdmin(user), user.ozonAccess === true, user.stockAccess === true);
 
   // Закрытие dropdown по клику снаружи / Esc
   useEffect(() => {

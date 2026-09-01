@@ -11,7 +11,9 @@ function formatNum(n: number): string {
 
 type SortBy = "name" | "stock" | "available";
 
-export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
+// canEdit=false — режим просмотра: страница нужна для сверки остатков,
+// но править их может только тот, кто отвечает за склад.
+export function Stock({ warehouse = "our", canEdit = true }: { warehouse?: "our" | "ff"; canEdit?: boolean }) {
   const [rows, setRows] = useState<StockRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -225,8 +227,8 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
               <StockMobileCard
                 key={r.sku}
                 row={r}
-                onAdjust={() => setAdjusting(r)}
-                onTransfer={warehouse === "ff" ? () => setTransferring(r) : undefined}
+                onAdjust={canEdit ? () => setAdjusting(r) : undefined}
+                onTransfer={canEdit && warehouse === "ff" ? () => setTransferring(r) : undefined}
               />
             ))}
           </div>
@@ -321,13 +323,15 @@ export function Stock({ warehouse = "our" }: { warehouse?: "our" | "ff" }) {
                               → Склад
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setAdjusting(r)}
-                            className="px-2 py-1 text-[11px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
-                          >
-                            Изменить
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => setAdjusting(r)}
+                              className="px-2 py-1 text-[11px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
+                            >
+                              Изменить
+                            </button>
+                          )}
                         </div>
                       </Td>
                     </tr>
@@ -395,7 +399,7 @@ function StockMobileCard({
   onTransfer,
 }: {
   row: StockRow;
-  onAdjust: () => void;
+  onAdjust?: () => void;
   onTransfer?: () => void;
 }) {
   const isLow = row.stock < row.min_stock;
@@ -416,13 +420,15 @@ function StockMobileCard({
           </div>
         </div>
         <div className="shrink-0 flex flex-col gap-1.5">
-          <button
-            type="button"
-            onClick={onAdjust}
-            className="px-2.5 py-1 text-[12px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
-          >
-            Изменить
-          </button>
+          {onAdjust && (
+            <button
+              type="button"
+              onClick={onAdjust}
+              className="px-2.5 py-1 text-[12px] rounded border border-line bg-surface hover:bg-brand-tint hover:border-brand text-ink font-medium transition-colors"
+            >
+              Изменить
+            </button>
+          )}
           {onTransfer && (
             <button
               type="button"
