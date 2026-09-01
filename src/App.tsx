@@ -237,6 +237,12 @@ export default function App() {
     );
   }
 
+  // Один источник правды о правах. Раньше меню и рендер страницы проверяли
+  // доступ по РАЗНЫМ условиям, и они разошлись: «Склад ФФ» был в меню, но при
+  // клике проваливался в конец цепочки и открывал аналитику Ozon.
+  const allowed = (p: Page) =>
+    isPageAllowed(p, user.role, user.warehouse, user.ozonAccess, user.stockAccess);
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       <Nav
@@ -249,35 +255,29 @@ export default function App() {
         }}
       />
       <main className="flex-1 min-w-0">
-        {page === "orders_all" && (user.role === "owner" || user.role === "manager") ? (
+        {page === "orders_all" && allowed("orders_all") ? (
           <AllOrders onOpenKanban={user.role === "owner" ? () => setPage("kanban") : undefined} />
         ) : page === "kanban" && user.role === "owner" ? (
           <Kanban onBack={() => setPage("orders_all")} />
-        ) : page === "orders" ? (
+        ) : page === "orders" && allowed("orders") ? (
           <Orders />
-        ) : page === "preorders" ? (
+        ) : page === "preorders" && allowed("preorders") ? (
           <Preorders />
-        ) : page === "stock" &&
-          (user.role === "owner" ||
-            ((user.role === "fulfillment" || user.stockAccess) &&
-              (user.warehouse === "our" || user.warehouse === "both"))) ? (
+        ) : page === "stock" && allowed("stock") ? (
           <Stock warehouse="our" canEdit={user.role !== "ozon"} />
-        ) : page === "stock_ff" &&
-          (user.role === "owner" ||
-            ((user.role === "fulfillment" || user.stockAccess) &&
-              (user.warehouse === "ff" || user.warehouse === "both"))) ? (
+        ) : page === "stock_ff" && allowed("stock_ff") ? (
           <Stock warehouse="ff" canEdit={user.role !== "ozon"} />
-        ) : page === "ozon" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
+        ) : page === "ozon" && allowed("ozon") ? (
           <Ozon />
-        ) : page === "hypotheses" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
+        ) : page === "hypotheses" && allowed("hypotheses") ? (
           <Hypotheses />
-        ) : page === "ozon_traffic" && (user.role === "owner" || user.role === "ozon" || user.ozonAccess) ? (
+        ) : page === "ozon_traffic" && allowed("ozon_traffic") ? (
           <OzonTraffic />
-        ) : page === "site" && user.role === "owner" ? (
+        ) : page === "site" && allowed("site") ? (
           <Site />
-        ) : page === "analytics" && user.role === "owner" ? (
+        ) : page === "analytics" && allowed("analytics") ? (
           <Analytics />
-        ) : page === "balance" && user.role === "owner" ? (
+        ) : page === "balance" && allowed("balance") ? (
           <Balance />
         ) : user.role === "ozon" ? (
           <Ozon />
