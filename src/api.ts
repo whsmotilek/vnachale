@@ -672,6 +672,10 @@ export interface Hypothesis {
   closed_at: string;
   verdict_text: string;
   metrics: { before?: HypMetricPhase; after?: HypMetricPhase };
+  /** Обложка до и после правки. null — пары нет: тест не про фото, правка вне
+   *  журнала изменений, либо обложку в те часы крутил сторонний A/B-сервис и
+   *  честного «было» не существует. */
+  visual: { before: string; after: string; changed_at: string; sku: string } | null;
 }
 export interface HypByAction {
   action: string; total: number; worked: number; effect: number;

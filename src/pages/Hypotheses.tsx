@@ -97,6 +97,45 @@ function VerdictText({ raw }: { raw: string }) {
   );
 }
 
+/** Обложка до и после правки.
+ *
+ *  Без картинок фиксация теста бессмысленна: через месяц по строке «главное
+ *  фото» никто не вспомнит, о какой именно обложке шла речь. Ссылки берутся из
+ *  журнала изменений — снимок карточек идёт ежечасно и хранит их строками,
+ *  поэтому старые фото остаются доступными и после замены. */
+function BeforeAfter({ v }: { v: { before: string; after: string; changed_at: string; sku: string } }) {
+  const cell = (label: string, src: string) => (
+    <figure className="min-w-0">
+      <figcaption className="mb-1 text-[10px] uppercase tracking-wider text-ink-muted">{label}</figcaption>
+      {src ? (
+        <a href={src} target="_blank" rel="noreferrer">
+          <img src={src} alt={label} loading="lazy"
+               className="aspect-[3/4] w-full rounded-lg border border-line object-cover bg-surface-alt" />
+        </a>
+      ) : (
+        <div className="flex aspect-[3/4] w-full items-center justify-center rounded-lg border border-dashed border-line text-[11px] text-ink-subtle">
+          обложки не было
+        </div>
+      )}
+    </figure>
+  );
+  return (
+    <div className="mt-4 rounded-xl border border-line bg-surface-alt p-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <h4 className="text-[12px] font-semibold text-ink">Обложка: было и стало</h4>
+        <span className="text-[10px] text-ink-subtle">
+          {v.sku} · правка {fmtDate(v.changed_at)}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {cell("было", v.before)}
+        {cell("стало", v.after)}
+      </div>
+    </div>
+  );
+}
+
+
 function Detail({ h, onClose, onDeleted }: {
   h: Hypothesis; onClose: () => void; onDeleted: () => void;
 }) {
@@ -218,6 +257,8 @@ function DetailBody({ h, onClose, onRemove, deleting }: {
             </table>
           </div>
         )}
+
+        {h.visual && <BeforeAfter v={h.visual} />}
 
         {h.verdict_text && <VerdictText raw={h.verdict_text} />}
 
