@@ -471,7 +471,11 @@ function DailyTrendChart({ daily, from, to }: { daily: OzonDailyPoint[]; from?: 
  *  Источник — финансовые операции Ozon, а не статусы отправлений: у FBO даты
  *  выкупа нет вообще. */
 function FinanceLadder({ fin }: { fin: OzonFinance }) {
-  const c = fin.cash, k = fin.cohort;
+  const c = fin.cash, k = fin.cohort, cov = fin.coverage;
+  // Лист «Ozon» держит только последние 60 дней. Если выбранный период глубже,
+  // когорта заказов неполна — её показатели скрываем, а не показываем обрезок:
+  // «заказано» за часть срока рядом с «выкуплено» за весь читалось бы как провал.
+  const full = cov.cohort_covers_period;
   const step = (label: string, value: number, hint?: string, neg = false) => (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
       <span className="text-[12px] text-ink-muted">{label}</span>
@@ -487,11 +491,22 @@ function FinanceLadder({ fin }: { fin: OzonFinance }) {
       <div className="rounded-xl border border-line bg-surface p-4">
         <div className="flex items-baseline justify-between mb-1">
           <h2 className="text-[13px] font-semibold text-ink">Факт: сколько дошло до счёта</h2>
-          <span className="text-[11px] text-ink-subtle">финансовые операции Ozon</span>
+          <span className="text-[11px] text-ink-subtle">
+            финансовые операции Ozon{cov.cash_from && ` · с ${cov.cash_from}`}
+          </span>
         </div>
         <div className="divide-y divide-line">
-          {step("Заказано", k.ordered, `${num(k.ordered_n)} отпр.`)}
-          {step("Выкуплено", c.sold_gross, `${num(k.bought_n)} отпр.`)}
+          {full
+            ? step("Заказано", k.ordered, `${num(k.ordered_n)} отпр.`)
+            : (
+              <div className="flex items-baseline justify-between gap-3 py-1.5">
+                <span className="text-[12px] text-ink-muted">Заказано</span>
+                <span className="text-[11px] text-ink-subtle text-right">
+                  история заказов только с {cov.cohort_from}
+                </span>
+              </div>
+            )}
+          {step("Выкуплено", c.sold_gross, full ? `${num(k.bought_n)} отпр.` : undefined)}
           {step("Возвращено покупателями", c.returned, undefined, true)}
           {step("Комиссия Ozon", c.sold_net - c.sold_gross, undefined, true)}
           {step("Реклама", c.ads, undefined, true)}
@@ -506,10 +521,12 @@ function FinanceLadder({ fin }: { fin: OzonFinance }) {
 
       <div className="grid grid-cols-2 gap-2.5 content-start">
         <Kpi label="Выкуп" value={k.buyout_pct == null ? "—" : `${k.buyout_pct}%`}
-             hint={`${num(k.bought_n)} из ${num(k.bought_n + k.cancelled_n)} закрытых`} accent />
-        <Kpi label="Ещё в пути" value={num(k.transit_n)} hint={rub(k.transit)} />
+             hint={full ? `${num(k.bought_n)} из ${num(k.bought_n + k.cancelled_n)} закрытых`
+                        : `нужен период с ${cov.cohort_from}`} accent />
+        <Kpi label="Ещё в пути" value={full ? num(k.transit_n) : "—"}
+             hint={full ? rub(k.transit) : "нет данных за период"} />
         <Kpi label="ДРР от заказов" value={fin.drr.by_orders == null ? "—" : `${fin.drr.by_orders}%`}
-             hint="от оборота" />
+             hint={full ? "от оборота" : "нужна история заказов"} />
         <Kpi label="ДРР от выкупа" value={fin.drr.by_buyout == null ? "—" : `${fin.drr.by_buyout}%`}
              hint="от фактических продаж"
              tone={(fin.drr.by_buyout ?? 0) >= 15 ? "rose" : undefined} />

@@ -701,6 +701,12 @@ export interface HypothesesResponse {
  *  Отличается от дашборда принципиально — тот считает ОБОРОТ заказов. */
 export interface OzonFinance {
   period: { from: string; to: string };
+  /** Покрытие источников разное: касса с марта, заказы — последние 60 дней. */
+  coverage: {
+    cash_from: string; cash_to: string;
+    cohort_from: string; cohort_to: string;
+    cohort_covers_period: boolean;
+  };
   cash: {
     sold_gross: number;    // начислено за выкупленный товар (до комиссии)
     returned: number;      // начисления, снятые возвратами (отрицательное)
