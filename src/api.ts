@@ -697,6 +697,33 @@ export interface HypothesesResponse {
   note?: string;
 }
 
+/** Факт по деньгам Ozon: что выкупили, что удержали, что осталось.
+ *  Отличается от дашборда принципиально — тот считает ОБОРОТ заказов. */
+export interface OzonFinance {
+  period: { from: string; to: string };
+  cash: {
+    sold_gross: number;    // начислено за выкупленный товар (до комиссии)
+    returned: number;      // начисления, снятые возвратами (отрицательное)
+    net_sales: number;     // фактически продано = sold_gross + returned
+    sold_net: number;      // деньги по продажам после комиссии
+    returns: number;       // движение денег по возвратам
+    ads: number;           // реклама (клики + оплата за заказ)
+    other_fees: number;    // прочие удержания Ozon
+    compensation: number;
+    payout: number;        // итог: реально пришло на счёт
+  };
+  cohort: {
+    ordered: number; ordered_n: number;
+    bought: number; bought_n: number;
+    cancelled: number; cancelled_n: number;
+    transit: number; transit_n: number;
+    buyout_pct: number | null;
+  };
+  drr: { by_orders: number | null; by_buyout: number | null };
+  fees: Array<{ name: string; amount: number }>;
+  daily: Array<Record<string, number | string>>;
+}
+
 export const api = {
   async authTelegram(payload: Record<string, unknown>): Promise<{ token: string }> {
     return request("/auth/telegram", { method: "POST", body: JSON.stringify(payload) });
@@ -787,6 +814,13 @@ export const api = {
   },
   async deleteHypothesis(id: string): Promise<{ status: string }> {
     return request(`/hypotheses/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  async ozonFinance(periodFrom?: string, periodTo?: string): Promise<OzonFinance> {
+    const p = new URLSearchParams();
+    if (periodFrom) p.set("period_from", periodFrom);
+    if (periodTo) p.set("period_to", periodTo);
+    p.set("_t", String(Date.now()));
+    return request(`/ozon/finance?${p.toString()}`);
   },
   async ozonDashboard(periodFrom?: string, periodTo?: string): Promise<OzonDashboard> {
     const p = new URLSearchParams();

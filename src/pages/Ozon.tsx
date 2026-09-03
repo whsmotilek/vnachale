@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, AlertTriangle, TrendingUp, Flame } from "lucide-react";
-import { api, ApiError, type OzonDashboard, type OzonCluster, type OzonTimelinePoint, type OzonDailyPoint } from "../api";
+import { api, ApiError, type OzonDashboard, type OzonCluster, type OzonTimelinePoint, type OzonDailyPoint, type OzonFinance } from "../api";
 import { StatCardsSkeleton } from "../components/Skeleton";
 import { hasApi } from "../env";
 
@@ -34,6 +34,7 @@ export function Ozon() {
   const [customTo, setCustomTo] = useState("");
   // диапазон доступных дат (приходит из ответа, не зависит от фильтра)
   const [avail, setAvail] = useState<{ from: string; to: string } | null>(null);
+  const [fin, setFin] = useState<OzonFinance | null>(null);
 
   const [tab, setTab] = useState<Tab>("clusters");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
@@ -63,6 +64,9 @@ export function Ozon() {
       })
       .catch((e) => setError(e instanceof ApiError ? `Ошибка ${e.status}` : "Не удалось загрузить дашборд."))
       .finally(() => setLoading(false));
+    // Факт по деньгам грузим отдельно: он из другого источника (финансовые
+    // операции Ozon), и его сбой не должен ронять весь дашборд.
+    api.ozonFinance(range.from, range.to).then(setFin).catch(() => setFin(null));
   }, [range.from, range.to]);
 
   const rows = useMemo(() => {
@@ -139,6 +143,8 @@ export function Ozon() {
         <StatCardsSkeleton />
       ) : data && k ? (
         <>
+          {fin && <FinanceLadder fin={fin} />}
+
           {/* График-тренд по дням с наведением (свечка) — вверху, реагирует на период */}
           <DailyTrendChart daily={data.daily} from={data.period_from} to={data.period_to} />
 
@@ -456,6 +462,71 @@ function DailyTrendChart({ daily, from, to }: { daily: OzonDailyPoint[]; from?: 
     </section>
   );
 }
+
+/** Лестница денег: от оборота заказов до того, что пришло на счёт.
+ *
+ *  Нужна потому, что дашборд отвечает на вопрос «сколько заказали», а решения
+ *  принимаются по тому, «сколько получили» — разрыв кратный: выкупают около
+ *  трети заказов, дальше Ozon удерживает комиссию, логистику и рекламу.
+ *  Источник — финансовые операции Ozon, а не статусы отправлений: у FBO даты
+ *  выкупа нет вообще. */
+function FinanceLadder({ fin }: { fin: OzonFinance }) {
+  const c = fin.cash, k = fin.cohort;
+  const step = (label: string, value: number, hint?: string, neg = false) => (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <span className="text-[12px] text-ink-muted">{label}</span>
+      <span className="flex items-baseline gap-2">
+        {hint && <span className="text-[11px] text-ink-subtle">{hint}</span>}
+        <span className={clsx("text-[13px] tabular-nums font-medium",
+          neg ? "text-ink-muted" : "text-ink")}>{rub(value)}</span>
+      </span>
+    </div>
+  );
+  return (
+    <section className="mb-4 grid gap-2.5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="rounded-xl border border-line bg-surface p-4">
+        <div className="flex items-baseline justify-between mb-1">
+          <h2 className="text-[13px] font-semibold text-ink">Факт: сколько дошло до счёта</h2>
+          <span className="text-[11px] text-ink-subtle">финансовые операции Ozon</span>
+        </div>
+        <div className="divide-y divide-line">
+          {step("Заказано", k.ordered, `${num(k.ordered_n)} отпр.`)}
+          {step("Выкуплено", c.sold_gross, `${num(k.bought_n)} отпр.`)}
+          {step("Возвращено покупателями", c.returned, undefined, true)}
+          {step("Комиссия Ozon", c.sold_net - c.sold_gross, undefined, true)}
+          {step("Реклама", c.ads, undefined, true)}
+          {step("Логистика возвратов и прочее", c.returns - c.returned + c.other_fees, undefined, true)}
+          {c.compensation !== 0 && step("Компенсации", c.compensation)}
+        </div>
+        <div className="mt-2 pt-2 border-t border-line flex items-baseline justify-between">
+          <span className="text-[13px] font-semibold text-ink">Пришло на счёт</span>
+          <span className="text-[15px] font-semibold tabular-nums text-brand">{rub(c.payout)}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 content-start">
+        <Kpi label="Выкуп" value={k.buyout_pct == null ? "—" : `${k.buyout_pct}%`}
+             hint={`${num(k.bought_n)} из ${num(k.bought_n + k.cancelled_n)} закрытых`} accent />
+        <Kpi label="Ещё в пути" value={num(k.transit_n)} hint={rub(k.transit)} />
+        <Kpi label="ДРР от заказов" value={fin.drr.by_orders == null ? "—" : `${fin.drr.by_orders}%`}
+             hint="от оборота" />
+        <Kpi label="ДРР от выкупа" value={fin.drr.by_buyout == null ? "—" : `${fin.drr.by_buyout}%`}
+             hint="от фактических продаж"
+             tone={(fin.drr.by_buyout ?? 0) >= 15 ? "rose" : undefined} />
+        <div className="col-span-2 rounded-xl border border-line bg-surface p-3">
+          <div className="text-[11px] text-ink-subtle mb-1.5">Куда ушли деньги</div>
+          {fin.fees.slice(0, 5).map((f) => (
+            <div key={f.name} className="flex items-baseline justify-between gap-3 py-0.5">
+              <span className="text-[12px] text-ink-muted truncate">{f.name}</span>
+              <span className="text-[12px] tabular-nums text-ink shrink-0">{rub(f.amount)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 function Kpi({ label, value, hint, accent = false, tone }: {
   label: string; value: string; hint?: string; accent?: boolean; tone?: "rose" | "emerald";
