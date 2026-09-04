@@ -11,10 +11,10 @@ import {
   Archive, Beaker, CalendarClock, Filter, Sparkles, ThumbsDown, ThumbsUp,
   TrendingUp, X,
 } from "lucide-react";
-import { api, type Hypothesis, type HypothesesResponse } from "../api";
+import { api, type Hypothesis, type HypothesesResponse, type CoverTest } from "../api";
 import { StatCard } from "../components/StatCard";
 import { StatCardsSkeleton } from "../components/Skeleton";
-import { hasApi } from "../env";
+import { hasApi, env } from "../env";
 
 function fmtNum(n: number): string {
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n);
@@ -104,12 +104,16 @@ function VerdictText({ raw }: { raw: string }) {
  *  журнала изменений — снимок карточек идёт ежечасно и хранит их строками,
  *  поэтому старые фото остаются доступными и после замены. */
 function BeforeAfter({ v }: { v: { before: string; after: string; changed_at: string; sku: string } }) {
+  // Картинки берём через наш прокси, а не прямой ссылкой на CDN Ozon: прямая
+  // ссылка открывается с сервера, но не грузится в браузере у пользователя.
+  const via = (u: string) =>
+    u ? `${env.apiBaseUrl}/img/ozon?u=${encodeURIComponent(u)}` : "";
   const cell = (label: string, src: string) => (
     <figure className="min-w-0">
       <figcaption className="mb-1 text-[10px] uppercase tracking-wider text-ink-muted">{label}</figcaption>
       {src ? (
-        <a href={src} target="_blank" rel="noreferrer">
-          <img src={src} alt={label} loading="lazy"
+        <a href={via(src)} target="_blank" rel="noreferrer">
+          <img src={via(src)} alt={label} loading="lazy"
                className="aspect-[3/4] w-full rounded-lg border border-line object-cover bg-surface-alt" />
         </a>
       ) : (
@@ -283,6 +287,82 @@ function DetailBody({ h, onClose, onRemove, deleting }: {
   );
 }
 
+/** Ход теста обложек: какой кандидат сколько провисел и что принёс.
+ *
+ *  Считаем заказами, а не кликабельностью: показы Ozon отдаёт только суточной
+ *  суммой, а за сутки успевает отработать два десятка обложек — разложить их по
+ *  вариантам невозможно. Время создания отправления мы знаем сами.
+ */
+function CoverTestBlock({ c }: { c: CoverTest }) {
+  const [all, setAll] = useState(false);
+  const vs = c.variants ?? [];
+  const shown = all ? vs : vs.slice(0, 6);
+  const started = c.started_at ? fmtDate(c.started_at) : "—";
+  return (
+    <section className="rounded-xl border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+        <h2 className="text-[14px] font-semibold text-ink">
+          Тест обложек · {c.product}
+        </h2>
+        <span className="text-[11px] text-ink-subtle">
+          с {started} · {c.hours_total} ч · заказов {c.orders_total}
+        </span>
+      </div>
+      <p className="text-[12px] text-ink-muted leading-relaxed mb-3">
+        Обложка меняется по расписанию, заказ засчитывается тому кандидату, который
+        висел в момент его создания. Контроль — {(c.control ?? []).join(" и ")}:
+        им обложку не трогаем, сейчас у них {c.control_orders_per_day} заказов в сутки.
+      </p>
+
+      {!c.enough_data && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2
+                        text-[12px] text-amber-900 dark:border-amber-800
+                        dark:bg-amber-900/20 dark:text-amber-200">
+          Выводы делать рано: нужно ещё {c.need_orders} заказов, иначе порядок в
+          таблице — это шум, а не результат.
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        {shown.map((v, i) => (
+          <figure key={v.variant} className="min-w-0">
+            <div className="relative">
+              {v.image ? (
+                <img src={v.image} alt={v.variant} loading="lazy"
+                     className="aspect-[3/4] w-full rounded-lg border border-line
+                                object-cover bg-surface-alt" />
+              ) : (
+                <div className="aspect-[3/4] w-full rounded-lg border border-dashed border-line" />
+              )}
+              {c.enough_data && i === 0 && (
+                <span className="absolute top-1 left-1 rounded bg-brand px-1.5 py-0.5
+                                 text-[10px] font-medium text-white">лидер</span>
+              )}
+            </div>
+            <figcaption className="mt-1">
+              <div className="text-[11px] text-ink-muted">{v.variant}</div>
+              <div className="text-[12px] tabular-nums text-ink">
+                {v.orders} зак · {v.hours} ч
+              </div>
+              <div className="text-[11px] tabular-nums text-ink-subtle">
+                {v.orders_per_day} в сутки
+              </div>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+
+      {vs.length > 6 && (
+        <button onClick={() => setAll((x) => !x)}
+                className="mt-3 text-[12px] text-ink-muted hover:text-ink">
+          {all ? "свернуть" : `показать все ${vs.length}`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+
 export function Hypotheses() {
   const [data, setData] = useState<HypothesesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -290,6 +370,7 @@ export function Hypotheses() {
   const [open, setOpen] = useState<Hypothesis | null>(null);
   const [filter, setFilter] = useState<Kind | "all">("all");
   const [product, setProduct] = useState<string>("all");
+  const [cover, setCover] = useState<CoverTest | null>(null);
 
   useEffect(() => {
     if (!hasApi) { setLoading(false); return; }
@@ -298,6 +379,9 @@ export function Hypotheses() {
       try {
         const d = await api.hypotheses();
         if (alive) setData(d);
+        // Тест обложек грузим отдельно: он из другого источника, и его сбой
+        // не должен ронять журнал гипотез.
+        api.coverTest().then((c) => { if (alive) setCover(c); }).catch(() => {});
       } catch (e) {
         if (alive) setErr(e instanceof Error ? e.message : "не удалось загрузить");
       } finally {
@@ -380,6 +464,8 @@ export function Hypotheses() {
           Метрики до и после снимаются автоматически, вердикт — с поправкой на общий фон.
         </p>
       </header>
+
+      {cover?.running && <CoverTestBlock c={cover} />}
 
       {s && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

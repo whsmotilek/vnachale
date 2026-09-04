@@ -734,6 +734,25 @@ export interface OzonFinance {
   daily: Array<Record<string, number | string>>;
 }
 
+/** Ход теста обложек на Ozon: какой кандидат сколько отработал и что принёс. */
+export interface CoverTest {
+  running: boolean;
+  note?: string;
+  started_at?: string;
+  hours_total?: number;
+  orders_total?: number;
+  control_orders_per_day?: number;
+  /** false — на кандидата ещё нет пяти заказов, порядок в таблице это шум */
+  enough_data?: boolean;
+  need_orders?: number;
+  product?: string;
+  control?: string[];
+  variants?: Array<{
+    variant: string; image: string; hours: number;
+    orders: number; revenue: number; orders_per_day: number;
+  }>;
+}
+
 export const api = {
   async authTelegram(payload: Record<string, unknown>): Promise<{ token: string }> {
     return request("/auth/telegram", { method: "POST", body: JSON.stringify(payload) });
@@ -818,6 +837,9 @@ export const api = {
   },
   async inventoryBalance(): Promise<BalanceResponse> {
     return request(`/inventory/balance?_t=${Date.now()}`);
+  },
+  async coverTest(): Promise<CoverTest> {
+    return request(`/ozon/cover-test?_t=${Date.now()}`);
   },
   async hypotheses(): Promise<HypothesesResponse> {
     return request(`/hypotheses?_t=${Date.now()}`);
