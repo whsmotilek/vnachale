@@ -745,11 +745,26 @@ export interface CoverTest {
   /** false — на кандидата ещё нет пяти заказов, порядок в таблице это шум */
   enough_data?: boolean;
   need_orders?: number;
+  /** Сутки, целиком отработанные одной обложкой, — только они годятся для CTR */
+  ctr_days?: number;
+  /** Сколько кандидатов уже замерено по кликабельности */
+  ctr_measured?: number;
+  ctr_min_views?: number;
+  /** true — замерены все кандидаты, можно сравнивать */
+  ctr_ready?: boolean;
   product?: string;
   control?: string[];
   variants?: Array<{
     variant: string; image: string; hours: number;
     orders: number; revenue: number; orders_per_day: number;
+    /** Полных суток под этой обложкой */
+    days?: number;
+    views?: number; clicks?: number;
+    /** null — показов ещё мало, кликабельность не считаем */
+    ctr?: number | null;
+    control_ctr?: number | null;
+    /** На сколько процентов CTR выше контроля */
+    lift?: number | null;
   }>;
 }
 
