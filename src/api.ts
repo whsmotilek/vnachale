@@ -739,32 +739,31 @@ export interface CoverTest {
   running: boolean;
   note?: string;
   started_at?: string;
+  /** Окно теста по Москве — вне его часы в замер не идут */
+  window?: string;
   hours_total?: number;
   orders_total?: number;
-  control_orders_per_day?: number;
-  /** false — на кандидата ещё нет пяти заказов, порядок в таблице это шум */
+  /** Заказы теста ÷ заказы контроля у нынешней обложки — база отсчёта */
+  base_ratio?: number | null;
+  min_orders?: number;
+  measured?: number;
+  variants_total?: number;
+  winner?: string | null;
+  /** true — победитель определён по нижней границе интервала */
   enough_data?: boolean;
-  need_orders?: number;
-  /** Сутки, целиком отработанные одной обложкой, — только они годятся для CTR */
-  ctr_days?: number;
-  /** Сколько кандидатов уже замерено по кликабельности */
-  ctr_measured?: number;
-  ctr_min_views?: number;
-  /** true — замерены все кандидаты, можно сравнивать */
-  ctr_ready?: boolean;
   product?: string;
   control?: string[];
   variants?: Array<{
     variant: string; image: string; hours: number;
-    orders: number; revenue: number; orders_per_day: number;
-    /** Полных суток под этой обложкой */
-    days?: number;
-    views?: number; clicks?: number;
-    /** null — показов ещё мало, кликабельность не считаем */
-    ctr?: number | null;
-    control_ctr?: number | null;
-    /** На сколько процентов CTR выше контроля */
-    lift?: number | null;
+    orders: number; revenue: number;
+    control_orders: number;
+    /** Заказы теста ÷ заказы контроля в те же часы */
+    ratio: number | null;
+    /** На сколько процентов лучше нынешней обложки */
+    lift: number | null;
+    lift_se: number | null;
+    wins: boolean;
+    is_base: boolean;
   }>;
 }
 

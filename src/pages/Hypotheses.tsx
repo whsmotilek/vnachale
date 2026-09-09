@@ -305,23 +305,25 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
           Тест обложек · {c.product}
         </h2>
         <span className="text-[11px] text-ink-subtle">
-          с {started} · замерено суток {c.ctr_days ?? 0} · заказов {c.orders_total}
+          с {started} · окно {c.window} · заказов {c.orders_total}
         </span>
       </div>
       <p className="text-[12px] text-ink-muted leading-relaxed mb-3">
-        Каждая обложка стоит ровно сутки — Ozon отдаёт показы и переходы только
-        дневной суммой, поэтому сравниваем кликабельность по целым дням.
-        Контроль — {(c.control ?? []).join(" и ")}: им обложку не трогаем, и доля
-        к контролю показывает, обложка это выросла или весь рынок.
+        Обложка меняется каждый час; за блок из {c.variants_total ?? 15} дней каждая
+        успевает постоять в каждом часе окна ровно раз, поэтому время суток не
+        мешает. Считаем не заказы напрямую, а долю к контролю
+        ({(c.control ?? []).join(" и ")}) в те же часы — так видно, обложка это
+        сработала или рынок качнулся. Нынешняя обложка участвует наравне
+        с кандидатами и служит точкой отсчёта.
       </p>
 
-      {!c.ctr_ready && (
+      {!c.enough_data && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2
                         text-[12px] text-amber-900 dark:border-amber-800
                         dark:bg-amber-900/20 dark:text-amber-200">
-          Сравнивать рано: кликабельность замерена у {c.ctr_measured ?? 0} обложек
-          из 14. Каждой нужны полные сутки и хотя бы{" "}
-          {(c.ctr_min_views ?? 1000).toLocaleString("ru")} показов.
+          Победителя пока нет: набрали нужные {c.min_orders ?? 30} заказов
+          {" "}{c.measured ?? 0} обложек из {c.variants_total ?? 15}. Пока интервал
+          не оторвался от нуля, порядок в таблице — это шум.
         </div>
       )}
 
@@ -336,36 +338,37 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
               ) : (
                 <div className="aspect-[3/4] w-full rounded-lg border border-dashed border-line" />
               )}
-              {c.ctr_ready && i === 0 && (
+              {v.wins && (
                 <span className="absolute top-1 left-1 rounded bg-brand px-1.5 py-0.5
                                  text-[10px] font-medium text-white">лидер</span>
               )}
+              {v.is_base && (
+                <span className="absolute top-1 right-1 rounded bg-ink/70 px-1.5 py-0.5
+                                 text-[10px] font-medium text-white">нынешняя</span>
+              )}
             </div>
             <figcaption className="mt-1">
-              <div className="text-[11px] text-ink-muted">{v.variant}</div>
-              {v.ctr != null ? (
-                <>
-                  <div className="text-[12px] tabular-nums text-ink">
-                    CTR {v.ctr}%
-                    {v.lift != null && (
-                      <span className={v.lift >= 0
-                        ? " text-emerald-600 dark:text-emerald-400"
-                        : " text-rose-600 dark:text-rose-400"}>
-                        {" "}{v.lift >= 0 ? "+" : ""}{v.lift}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] tabular-nums text-ink-subtle">
-                    {(v.views ?? 0).toLocaleString("ru")} показов · {v.days} сут
-                  </div>
-                </>
+              <div className="text-[11px] text-ink-muted">
+                {v.is_base ? "нынешняя обложка" : v.variant}
+              </div>
+              {v.lift != null ? (
+                <div className="text-[12px] tabular-nums text-ink">
+                  <span className={v.lift >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400"}>
+                    {v.lift >= 0 ? "+" : ""}{v.lift}%
+                  </span>
+                  {v.lift_se != null && (
+                    <span className="text-ink-subtle"> ± {v.lift_se}</span>
+                  )}
+                </div>
               ) : (
-                <div className="text-[11px] text-ink-subtle">
-                  {v.days ? "показов мало" : "ещё не стояла сутки"}
+                <div className="text-[12px] text-ink-subtle">
+                  {v.is_base ? "точка отсчёта" : "нет данных"}
                 </div>
               )}
               <div className="text-[11px] tabular-nums text-ink-subtle">
-                {v.orders} зак · {v.hours} ч
+                {v.orders} зак · контроль {v.control_orders} · {v.hours} ч
               </div>
             </figcaption>
           </figure>
