@@ -295,6 +295,7 @@ function DetailBody({ h, onClose, onRemove, deleting }: {
  */
 function CoverTestBlock({ c }: { c: CoverTest }) {
   const [all, setAll] = useState(false);
+  const byOrders = c.metric !== "ctr";
   const vs = c.variants ?? [];
   const shown = all ? vs : vs.slice(0, 6);
   const started = c.started_at ? fmtDate(c.started_at) : "—";
@@ -302,29 +303,47 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
     <section className="rounded-xl border border-line bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
         <h2 className="text-[14px] font-semibold text-ink">
-          Тест обложек · {c.product}
+          Тест обложек · {c.title} <span className="text-ink-subtle">({c.product})</span>
         </h2>
         <span className="text-[11px] text-ink-subtle">
-          с {started} · окно {c.window} · заказов {c.orders_total}
+          с {started} · смена {c.cadence}
+          {byOrders
+            ? ` · заказов ${c.orders_total}`
+            : ` · показов ${(c.views_total ?? 0).toLocaleString("ru")}`}
         </span>
       </div>
       <p className="text-[12px] text-ink-muted leading-relaxed mb-3">
-        Обложка меняется каждый час. Тест — {c.test_days ?? 3} дня по 12 часов
-        окна: {c.candidates_total ?? 14} кандидатов и нынешняя обложка делят
-        36 слотов, и каждый попадает в разные часы, а не приклеивается к одному.
-        Считаем не заказы напрямую, а долю к контролю
-        ({(c.control ?? []).join(" и ")}) в те же часы — так видно, обложка это
-        сработала или рынок качнулся. Нынешняя обложка участвует наравне
-        с кандидатами и служит точкой отсчёта.
+        {byOrders ? (
+          <>
+            Обложка меняется каждый час в окне {c.window}: {c.candidates_total} кандидатов
+            и нынешняя обложка делят {(c.test_days ?? 3) * 12} часовых слотов за
+            {" "}{c.test_days} дня, и каждый попадает в разные часы, а не
+            приклеивается к одному. Считаем долю к контролю
+            ({(c.control ?? []).join(" и ")}) в те же часы — так видно, обложка это
+            сработала или рынок качнулся.
+          </>
+        ) : (
+          <>
+            Обложка стоит ровно сутки: кликабельность Ozon отдаёт только дневной
+            суммой, и при более частой смене день не разложить. {c.candidates_total} фото
+            — {c.test_days} дней. У товара мало заказов, зато много показов, поэтому
+            меряем переходы, а не покупки. Контроль — {(c.control ?? []).join(" и ")}:
+            обложку ему не трогаем. Нынешняя обложка слот не занимает, её
+            кликабельность уже известна из истории показов.
+          </>
+        )}
       </p>
 
       {!c.enough_data && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2
                         text-[12px] text-amber-900 dark:border-amber-800
                         dark:bg-amber-900/20 dark:text-amber-200">
-          Победителя пока нет: набрали нужные {c.min_orders ?? 30} заказов
-          {" "}{c.measured ?? 0} обложек из {c.variants_total ?? 15}. Пока интервал
-          не оторвался от нуля, порядок в таблице — это шум.
+          Победителя пока нет: данных хватило у {c.measured ?? 0} обложек из
+          {" "}{(c.candidates_total ?? 0) + (c.with_base ? 1 : 0)}. Нужно{" "}
+          {byOrders
+            ? `${c.min_orders ?? 30} заказов`
+            : `${(c.min_views ?? 3000).toLocaleString("ru")} показов`} на каждую.
+          Пока интервал не оторвался от нуля, порядок в таблице — это шум.
         </div>
       )}
 
@@ -369,7 +388,9 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
                 </div>
               )}
               <div className="text-[11px] tabular-nums text-ink-subtle">
-                {v.orders} зак · контроль {v.control_orders} · {v.hours} ч
+                {byOrders
+                  ? `${v.orders} зак · контроль ${v.control_orders} · ${v.hours} ч`
+                  : `${v.views.toLocaleString("ru")} показов · ${v.clicks} переходов`}
               </div>
             </figcaption>
           </figure>
@@ -394,7 +415,7 @@ export function Hypotheses() {
   const [open, setOpen] = useState<Hypothesis | null>(null);
   const [filter, setFilter] = useState<Kind | "all">("all");
   const [product, setProduct] = useState<string>("all");
-  const [cover, setCover] = useState<CoverTest | null>(null);
+  const [covers, setCovers] = useState<CoverTest[]>([]);
 
   useEffect(() => {
     if (!hasApi) { setLoading(false); return; }
@@ -405,7 +426,7 @@ export function Hypotheses() {
         if (alive) setData(d);
         // Тест обложек грузим отдельно: он из другого источника, и его сбой
         // не должен ронять журнал гипотез.
-        api.coverTest().then((c) => { if (alive) setCover(c); }).catch(() => {});
+        api.coverTest().then((c) => { if (alive) setCovers(c.tests ?? []); }).catch(() => {});
       } catch (e) {
         if (alive) setErr(e instanceof Error ? e.message : "не удалось загрузить");
       } finally {
@@ -489,7 +510,9 @@ export function Hypotheses() {
         </p>
       </header>
 
-      {cover?.running && <CoverTestBlock c={cover} />}
+      {covers.filter((c) => c.running).map((c) => (
+        <CoverTestBlock key={c.key} c={c} />
+      ))}
 
       {s && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

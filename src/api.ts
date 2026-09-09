@@ -736,38 +736,46 @@ export interface OzonFinance {
 
 /** Ход теста обложек на Ozon: какой кандидат сколько отработал и что принёс. */
 export interface CoverTest {
+  key: string;
+  title: string;
   running: boolean;
   note?: string;
-  started_at?: string;
-  /** Окно теста по Москве — вне его часы в замер не идут */
-  window?: string;
-  hours_total?: number;
-  orders_total?: number;
-  /** Заказы теста ÷ заказы контроля у нынешней обложки — база отсчёта */
-  base_ratio?: number | null;
-  min_orders?: number;
-  measured?: number;
-  variants_total?: number;
-  /** Сколько дней длится тест */
-  test_days?: number;
-  candidates_total?: number;
-  winner?: string | null;
-  /** true — победитель определён по нижней границе интервала */
-  enough_data?: boolean;
   product?: string;
   control?: string[];
+  /** orders — считаем заказами, ctr — кликабельностью */
+  metric?: "orders" | "ctr";
+  /** как часто меняется обложка */
+  cadence?: string;
+  window?: string;
+  started_at?: string;
+  test_days?: number;
+  candidates_total?: number;
+  /** участвует ли нынешняя обложка в ротации */
+  with_base?: boolean;
+  orders_total?: number;
+  views_total?: number;
+  measured?: number;
+  min_orders?: number;
+  min_views?: number;
+  base_ratio?: number | null;
+  winner?: string | null;
+  enough_data?: boolean;
   variants?: Array<{
     variant: string; image: string; hours: number;
-    orders: number; revenue: number;
-    control_orders: number;
-    /** Заказы теста ÷ заказы контроля в те же часы */
+    orders: number; revenue: number; control_orders: number;
+    views: number; clicks: number;
     ratio: number | null;
-    /** На сколько процентов лучше нынешней обложки */
     lift: number | null;
     lift_se: number | null;
     wins: boolean;
     is_base: boolean;
+    /** набрано ли достаточно данных по этой обложке */
+    enough: boolean;
   }>;
+}
+
+export interface CoverTestsResponse {
+  tests: CoverTest[];
 }
 
 export const api = {
@@ -855,7 +863,7 @@ export const api = {
   async inventoryBalance(): Promise<BalanceResponse> {
     return request(`/inventory/balance?_t=${Date.now()}`);
   },
-  async coverTest(): Promise<CoverTest> {
+  async coverTest(): Promise<CoverTestsResponse> {
     return request(`/ozon/cover-test?_t=${Date.now()}`);
   },
   async hypotheses(): Promise<HypothesesResponse> {
