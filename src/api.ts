@@ -748,6 +748,11 @@ export interface CoverTest {
   min_orders?: number;
   measured?: number;
   variants_total?: number;
+  /** Дней в раунде */
+  round_days?: number;
+  /** Кандидатов в раунде, кроме нынешней обложки */
+  per_round?: number;
+  candidates_total?: number;
   winner?: string | null;
   /** true — победитель определён по нижней границе интервала */
   enough_data?: boolean;
