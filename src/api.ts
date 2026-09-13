@@ -758,6 +758,7 @@ export interface CoverTest {
   min_orders?: number;
   min_views?: number;
   base_ratio?: number | null;
+  base_from?: string;
   winner?: string | null;
   enough_data?: boolean;
   variants?: Array<{
