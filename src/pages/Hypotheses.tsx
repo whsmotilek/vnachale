@@ -298,6 +298,7 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
   const byOrders = c.metric !== "ctr";
   const vs = c.variants ?? [];
   const shown = all ? vs : vs.slice(0, 6);
+  const need = byOrders ? (c.min_orders ?? 30) : (c.min_views ?? 3000);
   const started = c.started_at ? fmtDate(c.started_at) : "—";
   return (
     <section className="rounded-xl border border-line bg-surface p-4">
@@ -310,6 +311,12 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
           {byOrders
             ? ` · заказов ${c.orders_total}`
             : ` · показов ${(c.views_total ?? 0).toLocaleString("ru")}`}
+          {(c.slots_dropped ?? 0) > 0 && (
+            <> · <span title="Обложка не встала на все карточки за отведённое время,
+                              покупатель видел не то, что записано — такие слоты в замер не идут">
+              отброшено {c.slots_dropped}
+            </span></>
+          )}
         </span>
       </div>
       <p className="text-[12px] text-ink-muted leading-relaxed mb-3">
@@ -375,7 +382,10 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
               </div>
               {v.lift != null ? (
                 <div className="text-[12px] tabular-nums text-ink">
-                  <span className={v.lift >= 0
+                  {/* Пока порог не набран, цифра — шум. Красим её только когда
+                      данных хватило и интервал оторвался от нуля, иначе «+700%»
+                      на трёх заказах читается как результат. */}
+                  <span className={!v.enough ? "text-ink-subtle" : v.lift >= 0
                     ? "text-emerald-600 dark:text-emerald-400"
                     : "text-rose-600 dark:text-rose-400"}>
                     {v.lift >= 0 ? "+" : ""}{v.lift}%
@@ -386,13 +396,25 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
                 </div>
               ) : (
                 <div className="text-[12px] text-ink-subtle">
-                  {v.is_base ? "точка отсчёта" : "нет данных"}
+                  {v.is_base
+                    ? "точка отсчёта"
+                    : v.hours > 0 ? "сутки ещё не закрыты" : "ещё не крутилась"}
                 </div>
               )}
               <div className="text-[11px] tabular-nums text-ink-subtle">
                 {byOrders
-                  ? `${v.orders} зак · контроль ${v.control_orders} · ${v.hours} ч`
-                  : `${v.views.toLocaleString("ru")} показов · ${v.clicks} переходов`}
+                  ? `${v.orders} из ${need} заказов · ${v.hours} ч`
+                  : `${v.views.toLocaleString("ru")} из ${need.toLocaleString("ru")} показов`}
+              </div>
+              <div className="text-[11px] tabular-nums text-ink-subtle">
+                {byOrders
+                  ? `контроль ${v.control_orders}`
+                  : `${v.clicks} переходов`}
+              </div>
+              <div className="mt-1 h-1 w-full rounded-full bg-surface-alt overflow-hidden">
+                <div className={`h-full rounded-full ${v.enough ? "bg-emerald-500" : "bg-ink/25"}`}
+                     style={{ width: `${Math.min(100, Math.round(
+                       ((byOrders ? v.orders : v.views) / (need || 1)) * 100))}%` }} />
               </div>
             </figcaption>
           </figure>
