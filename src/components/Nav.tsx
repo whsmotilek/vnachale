@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Beaker, Boxes, ChevronDown, ChevronRight, Globe, LayoutGrid, LineChart, LogOut, Sparkles, TrendingUp, Wallet,
+  Beaker, Boxes, ChevronDown, ChevronRight, Clock, Globe, LayoutGrid, LineChart, LogOut, Sparkles, TrendingUp, Wallet,
 } from "lucide-react";
 import clsx from "clsx";
 import { Brand } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Page = "orders_all" | "kanban" | "orders" | "preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic" | "hypotheses";
+type Page = "orders_all" | "kanban" | "orders" | "preorders" | "site_preorders" | "stock" | "stock_ff" | "balance" | "analytics" | "site" | "ozon" | "ozon_traffic" | "hypotheses";
 type Role = "owner" | "manager" | "fulfillment" | "ozon" | "guest";
 type Warehouse = "our" | "ff" | "both";
 
@@ -52,6 +52,7 @@ const SECTIONS: NavSection[] = [
     label: "Сайт",
     items: [
       { id: "orders_all", label: "Заказы", Icon: LayoutGrid, roles: ["owner", "manager"] },
+      { id: "site_preorders", label: "Предзаказы", Icon: Clock, roles: ["owner", "manager"] },
       { id: "orders", label: "Заказы Склад", Icon: LayoutGrid, roles: ["owner", "fulfillment"], warehouses: ["our", "both"], adminOnly: true },
       { id: "preorders", label: "Заказы ФФ", Icon: Sparkles, roles: ["owner", "fulfillment"], warehouses: ["ff", "both"], adminOnly: true },
       { id: "stock", label: "Склад", Icon: Boxes, roles: ["owner", "fulfillment"], warehouses: ["our", "both"] },

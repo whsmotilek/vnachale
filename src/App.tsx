@@ -6,6 +6,7 @@ import { AllOrders } from "./pages/AllOrders";
 import { Kanban } from "./pages/Kanban";
 import { Orders } from "./pages/Orders";
 import { Preorders } from "./pages/Preorders";
+import { SitePreorders } from "./pages/SitePreorders";
 import { Stock } from "./pages/Stock";
 import { Analytics } from "./pages/Analytics";
 import { Balance } from "./pages/Balance";
@@ -94,12 +95,14 @@ function isPageAllowed(
     return false;
   }
   // Менеджер заказов: общая «Заказы» (все заказы обоих складов). Деньги/склад — нет.
-  if (role === "manager") return page === "orders_all";
+  // Менеджер ведёт клиентов, поэтому предзаказы ему тоже нужны: по ним чаще
+  // всего и спрашивают срок.
+  if (role === "manager") return page === "orders_all" || page === "site_preorders";
   return false;
 }
 
 const VALID_HASHES: ReadonlyArray<Page> = [
-  "orders_all", "kanban", "orders", "preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic", "hypotheses",
+  "orders_all", "kanban", "orders", "preorders", "site_preorders", "stock", "stock_ff", "balance", "analytics", "site", "ozon", "ozon_traffic", "hypotheses",
 ];
 
 export default function App() {
@@ -259,6 +262,8 @@ export default function App() {
           <AllOrders onOpenKanban={user.role === "owner" ? () => setPage("kanban") : undefined} />
         ) : page === "kanban" && user.role === "owner" ? (
           <Kanban onBack={() => setPage("orders_all")} />
+        ) : page === "site_preorders" && allowed("site_preorders") ? (
+          <SitePreorders />
         ) : page === "orders" && allowed("orders") ? (
           <Orders />
         ) : page === "preorders" && allowed("preorders") ? (

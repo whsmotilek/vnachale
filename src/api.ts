@@ -193,6 +193,24 @@ export interface OrderActivityItem {
   is_comment: boolean;
 }
 
+export interface PreorderOrder extends Order {
+  /** Позиции, которые ждут поставку. */
+  preorder_items: string;
+  /** Позиции, которые можно отгрузить уже сейчас (пусто у чистого предзаказа). */
+  regular_items: string;
+  kind: "full" | "mixed";
+  preorder_eta: string;
+  warehouse: "our" | "ff";
+}
+
+export interface PreordersResponse {
+  items: PreorderOrder[];
+  total: number;
+  full: number;
+  mixed: number;
+  paid: number;
+}
+
 export interface Order {
   order_id: string;
   created_at: string;
@@ -859,6 +877,9 @@ export const api = {
         reason: opts?.reason,
       }),
     });
+  },
+  async preorders(): Promise<PreordersResponse> {
+    return request(`/preorders?_t=${Date.now()}`);
   },
   async orders(): Promise<Order[]> {
     return request(`/orders?_t=${Date.now()}`);
