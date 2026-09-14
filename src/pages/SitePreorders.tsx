@@ -1,141 +1,164 @@
-import { useEffect, useState } from "react";
-import { api, type PreorderOrder, type PreordersResponse } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import { Clock, Search, X } from "lucide-react";
+import { api, type Order, type PreorderOrder } from "../api";
+import { OrdersTable } from "../components/OrdersTable";
+import { OrdersSkeleton } from "../components/Skeleton";
+import { hasApi } from "../env";
 
-const STATUS_RU: Record<string, string> = {
-  new: "новый", confirmed: "подтверждён", in_pack: "в сборке",
-  shipped: "отгружен", delivered: "доставлен",
-};
-
-function fmtDate(iso: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso.slice(0, 10)
-    : d.toLocaleDateString("ru", { day: "2-digit", month: "short" });
+function normalizePhone(s: string): string {
+  return (s || "").replace(/\D+/g, "");
 }
 
-/** Позиции приходят одной строкой «Название (Размер: L, SKU: X) - 1x5990 = 5990». */
-function itemLines(s: string): string[] {
-  return (s || "").split(";").map((x) => x.trim()).filter(Boolean);
+function matchesQuery(o: PreorderOrder, q: string): boolean {
+  const query = q.trim().toLowerCase();
+  if (!query) return true;
+  const digits = normalizePhone(query);
+  if (digits.length >= 3 && normalizePhone(o.customer_phone).includes(digits)) {
+    return true;
+  }
+  const hay = [
+    o.order_id, o.customer_name, o.customer_email, o.items, o.preorder_items,
+    o.delivery_method, o.pickup_point, o.delivery_address, o.city,
+    o.customer_comment, o.track_number,
+  ].filter(Boolean).join("   ").toLowerCase();
+  return hay.includes(query);
 }
 
-function Card({ o }: { o: PreorderOrder }) {
-  const waiting = itemLines(o.preorder_items);
-  const ready = itemLines(o.regular_items);
-  return (
-    <div className="rounded-xl border border-line bg-surface p-3.5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="min-w-0">
-          <span className="text-[13px] font-medium text-ink">{o.customer_name || "—"}</span>
-          <span className="ml-2 text-[11px] tabular-nums text-ink-subtle">#{o.order_id}</span>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-ink-subtle">
-          <span>{fmtDate(o.created_at)}</span>
-          <span className="rounded bg-surface-alt px-1.5 py-0.5">
-            {STATUS_RU[o.status] ?? o.status}
-          </span>
-          {o.kind === "mixed" && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-900
-                             dark:bg-amber-900/30 dark:text-amber-200">
-              две отгрузки
-            </span>
-          )}
-        </div>
-      </div>
+type Kind = "all" | "full" | "mixed";
 
-      {ready.length > 0 && (
-        <div className="mt-2.5">
-          <div className="text-[11px] font-medium text-ink-muted">📦 Можно отгружать сейчас</div>
-          <ul className="mt-0.5 space-y-0.5">
-            {ready.map((x, i) => (
-              <li key={i} className="text-[12px] text-ink">{x}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-2.5">
-        <div className="text-[11px] font-medium text-ink-muted">
-          ⏳ Ждёт поставку{o.preorder_eta ? ` · ${o.preorder_eta}` : ""}
-        </div>
-        <ul className="mt-0.5 space-y-0.5">
-          {waiting.map((x, i) => (
-            <li key={i} className="text-[12px] text-ink">{x}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
-        {o.customer_phone && <span>{o.customer_phone}</span>}
-        {o.city && <span>{o.city}</span>}
-        <span>приедет на {o.warehouse === "ff" ? "ФФ" : "наш склад"}</span>
-      </div>
-    </div>
-  );
-}
-
-export function SitePreorders() {
-  const [data, setData] = useState<PreordersResponse | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [kind, setKind] = useState<"all" | "full" | "mixed">("all");
+/**
+ * «Сайт → Предзаказы» — оплаченные заказы, товар для которых ещё не приехал.
+ *
+ * Заказ попадает сюда, только пока он ОТКРЫТ (новый / подтверждён / в сборке).
+ * Отгруженный предзаказом уже не считается: его собрали из реального наличия.
+ * Без этого условия признак считался по сегодняшнему остатку и задним числом
+ * красил давно доставленные заказы.
+ *
+ * В карточке показываем предзаказные позиции — то, чего ждём. Позиции, которые
+ * можно отгрузить уже сейчас, живут на обычных страницах заказов.
+ */
+export function SitePreorders({ readOnly = false }: { readOnly?: boolean }) {
+  const [orders, setOrders] = useState<PreorderOrder[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [kind, setKind] = useState<Kind>("all");
 
   useEffect(() => {
-    api.preorders().then(setData).catch((e) => setErr(String(e)));
+    if (!hasApi) {
+      setError("Сервис временно недоступен.");
+      setOrders([]);
+      return;
+    }
+    api.preorders()
+      .then((d) => setOrders(d.items))
+      .catch(() => {
+        setError("Не удалось загрузить предзаказы.");
+        setOrders([]);
+      });
   }, []);
 
-  if (err) return <div className="p-4 text-[13px] text-rose-600">{err}</div>;
-  if (!data) return <div className="p-4 text-[13px] text-ink-subtle">Загружаю…</div>;
+  const byKind = useMemo(
+    () => (orders ? orders.filter((o) => kind === "all" || o.kind === kind) : null),
+    [orders, kind],
+  );
+  const filtered = useMemo(
+    () => (byKind ? byKind.filter((o) => matchesQuery(o, q)) : null),
+    [byKind, q],
+  );
 
-  const shown = data.items.filter((o) => kind === "all" || o.kind === kind);
-  const open = shown.filter((o) => o.status !== "delivered");
-  const done = shown.filter((o) => o.status === "delivered");
+  function updateOrder(orderId: string, patch: Partial<Order>) {
+    setOrders((prev) =>
+      prev ? prev.map((o) => (o.order_id === orderId ? { ...o, ...patch } : o)) : prev,
+    );
+  }
+
+  // В карточке показываем ровно то, чего ждём: состав заказа подменяем на
+  // предзаказную часть, иначе у смешанного заказа склад видел бы и то, что
+  // уже уехало первой посылкой.
+  const forTable: Order[] = (filtered ?? []).map((o) => ({ ...o, items: o.preorder_items }));
+
+  const counts = {
+    all: orders?.length ?? 0,
+    full: orders?.filter((o) => o.kind === "full").length ?? 0,
+    mixed: orders?.filter((o) => o.kind === "mixed").length ?? 0,
+  };
+  const eta = orders?.find((o) => o.preorder_eta)?.preorder_eta ?? "";
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-[15px] font-semibold text-ink">Предзаказы</h1>
-        <p className="mt-1 text-[12px] text-ink-muted leading-relaxed">
-          Оплаченные заказы, товар для которых ещё не приехал. Поставка приходит на
-          фулфилмент, поэтому склад по таким заказам уведомлений не получает — они
-          ждут здесь. «Две отгрузки» значит, что часть заказа можно отправить уже
-          сейчас, а остальное уедет отдельной посылкой.
-        </p>
-      </div>
+    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-[1200px] animate-slide-up">
+      <header className="mb-5 flex items-baseline justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tighter2 text-ink flex items-center gap-2">
+            <Clock size={18} className="text-amber-600 dark:text-amber-400" />
+            Предзаказы
+          </h1>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            Оплачено, товар ещё не приехал{eta ? ` — ждём ${eta}` : ""}. Поставка
+            придёт на фулфилмент, уведомлений складу по таким заказам нет.
+            «Две отгрузки» — часть заказа уже уехала, здесь только остаток.
+          </p>
+        </div>
+        {filtered && byKind && (
+          <div className="text-[13px] text-ink-muted tabular-nums shrink-0">
+            {filtered.length}
+            {q && filtered.length !== byKind.length ? ` из ${byKind.length}` : ""}
+            {filtered.length === 1 ? " заказ" : " заказов"}
+          </div>
+        )}
+      </header>
 
-      <div className="flex flex-wrap gap-2 text-[12px]">
-        {([["all", `все ${data.total}`], ["full", `целиком предзаказ ${data.full}`],
-           ["mixed", `две отгрузки ${data.mixed}`]] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setKind(k)}
-                  className={`rounded-full border px-3 py-1 ${kind === k
-                    ? "border-brand bg-brand/10 text-brand"
+      <div className="mb-4 flex flex-wrap gap-2 text-[13px]">
+        {([["all", "все", counts.all], ["full", "целиком предзаказ", counts.full],
+           ["mixed", "две отгрузки", counts.mixed]] as const).map(([k, label, n]) => (
+          <button key={k} type="button" onClick={() => setKind(k)}
+                  className={`rounded-full border px-3 py-1 transition-colors ${kind === k
+                    ? "border-brand bg-brand-tint text-brand-dark dark:text-white"
                     : "border-line text-ink-muted hover:text-ink"}`}>
-            {label}
+            {label} <span className="tabular-nums">{n}</span>
           </button>
         ))}
       </div>
 
-      {open.length > 0 && (
-        <div className="space-y-2.5">
-          <div className="text-[12px] font-medium text-ink-muted">
-            Ждут отгрузки — {open.length}
-          </div>
-          {open.map((o) => <Card key={o.order_id} o={o} />)}
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft pointer-events-none" />
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Поиск: имя, телефон, адрес, артикул…"
+          className="w-full pl-9 pr-9 py-2 rounded-lg border border-line bg-surface text-[14px] text-ink placeholder:text-ink-soft focus:outline-none focus:border-brand transition-colors"
+        />
+        {q && (
+          <button onClick={() => setQ("")} type="button"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded text-ink-muted hover:text-ink hover:bg-surface-hover">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-4 text-[13px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+          {error}
         </div>
       )}
 
-      {done.length > 0 && (
-        <div className="space-y-2.5">
-          <div className="text-[12px] font-medium text-ink-muted">
-            Уже доставлены — {done.length}
+      {filtered === null ? (
+        <OrdersSkeleton />
+      ) : filtered.length === 0 ? (
+        <div className="card p-10 text-center text-ink-muted">
+          <Clock size={28} className="mx-auto mb-3 text-amber-500/60" />
+          <div className="text-base font-medium text-ink tracking-tightish">
+            {q ? "Ничего не найдено" : "Предзаказов нет"}
           </div>
-          {done.map((o) => <Card key={o.order_id} o={o} />)}
+          <div className="mt-1 text-[13px]">
+            {q
+              ? <>Поиск «<span className="text-ink">{q}</span>» — нет совпадений.</>
+              : <>Сюда попадают оплаченные заказы, товар для которых ещё в пути.</>
+            }
+          </div>
         </div>
-      )}
-
-      {shown.length === 0 && (
-        <div className="rounded-xl border border-dashed border-line p-6 text-center
-                        text-[13px] text-ink-subtle">
-          Предзаказов нет
-        </div>
+      ) : (
+        <OrdersTable orders={forTable} onUpdate={updateOrder} readOnly={readOnly} />
       )}
     </div>
   );
