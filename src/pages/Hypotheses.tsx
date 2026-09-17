@@ -298,7 +298,9 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
   const byOrders = c.metric !== "ctr";
   const vs = c.variants ?? [];
   const shown = all ? vs : vs.slice(0, 6);
-  const need = byOrders ? (c.min_orders ?? 30) : (c.min_views ?? 3000);
+  // Точность отношения кликабельностей задают КЛИКИ, а не показы: показов
+  // костюм набирает 78 тысяч в сутки, и порог по ним ничего не значит.
+  const need = byOrders ? (c.min_orders ?? 30) : (c.min_clicks ?? 300);
   const started = c.started_at ? fmtDate(c.started_at) : "—";
   return (
     <section className="rounded-xl border border-line bg-surface p-4">
@@ -333,8 +335,9 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
           <>
             Обложка стоит ровно сутки: кликабельность Ozon отдаёт только дневной
             суммой, и при более частой смене день не разложить. {c.candidates_total} фото
-            — {c.test_days} дней. У товара мало заказов, зато много показов, поэтому
-            меряем переходы, а не покупки. Контроль — {(c.control ?? []).join(" и ")}:
+            — {c.test_days} дней. Меряем переходы, а не покупки: покупок слишком
+            мало, чтобы отличить обложку от случайности, а переходов хватает
+            за один день. Контроль — {(c.control ?? []).join(" и ")}:
             обложку ему не трогаем. Нынешняя обложка слот не занимает: за неё
             берём дни до старта{c.base_from ? ` (${c.base_from})` : ""}, когда она
             и стояла на карточке. Дни, в которые карточку правили, из базы
@@ -351,7 +354,7 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
           {" "}{(c.candidates_total ?? 0) + (c.with_base ? 1 : 0)}. Нужно{" "}
           {byOrders
             ? `${c.min_orders ?? 30} заказов`
-            : `${(c.min_views ?? 3000).toLocaleString("ru")} показов`} на каждую.
+            : `${c.min_clicks ?? 300} переходов`} на каждую.
           Пока интервал не оторвался от нуля, порядок в таблице — это шум.
         </div>
       )}
@@ -404,17 +407,17 @@ function CoverTestBlock({ c }: { c: CoverTest }) {
               <div className="text-[11px] tabular-nums text-ink-subtle">
                 {byOrders
                   ? `${v.orders} из ${need} заказов · ${v.hours} ч`
-                  : `${v.views.toLocaleString("ru")} из ${need.toLocaleString("ru")} показов`}
+                  : `${v.clicks} из ${need} переходов`}
               </div>
               <div className="text-[11px] tabular-nums text-ink-subtle">
                 {byOrders
                   ? `контроль ${v.control_orders}`
-                  : `${v.clicks} переходов`}
+                  : `${v.views.toLocaleString("ru")} показов`}
               </div>
               <div className="mt-1 h-1 w-full rounded-full bg-surface-alt overflow-hidden">
                 <div className={`h-full rounded-full ${v.enough ? "bg-emerald-500" : "bg-ink/25"}`}
                      style={{ width: `${Math.min(100, Math.round(
-                       ((byOrders ? v.orders : v.views) / (need || 1)) * 100))}%` }} />
+                       ((byOrders ? v.orders : v.clicks) / (need || 1)) * 100))}%` }} />
               </div>
             </figcaption>
           </figure>

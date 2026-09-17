@@ -775,6 +775,7 @@ export interface CoverTest {
   measured?: number;
   min_orders?: number;
   min_views?: number;
+  min_clicks?: number;
   base_ratio?: number | null;
   base_from?: string;
   slots_dropped?: number;
